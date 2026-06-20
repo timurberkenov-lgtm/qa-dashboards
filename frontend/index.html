@@ -9,96 +9,190 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-left">
-                <div class="logo">
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
                     <i class="fas fa-chart-line"></i>
-                    <span>SA Team Dashboard</span>
+                    <span>SA Dashboard</span>
                 </div>
-                <span class="header-subtitle">Системные аналитики | ForteBank</span>
             </div>
-            <div class="header-right">
-                <div class="last-updated">
-                    <i class="fas fa-sync-alt"></i>
-                    <span id="lastUpdated">Загрузка...</span>
-                </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="#" class="nav-item" data-page="tasks" onclick="navigateTo('tasks')">
+                    <i class="fas fa-tasks"></i>
+                    <span>Задачи Jira</span>
+                    <span class="nav-badge" id="navTasksBadge"></span>
+                </a>
+                <a href="#" class="nav-item" data-page="merge-requests" onclick="navigateTo('merge-requests')">
+                    <i class="fas fa-code-branch"></i>
+                    <span>Merge Requests</span>
+                    <span class="nav-badge" id="navMRBadge"></span>
+                </a>
+                <a href="#" class="nav-item" data-page="confluence" onclick="navigateTo('confluence')">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Документация</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
                 <div class="status-indicator" id="connectionStatus">
                     <span class="status-dot"></span>
                     <span>Live</span>
                 </div>
+                <div class="last-updated">
+                    <i class="fas fa-sync-alt"></i>
+                    <span id="lastUpdated">-</span>
+                </div>
             </div>
-        </header>
+        </aside>
 
-        <!-- Summary Cards -->
-        <section class="summary-section">
-            <div class="summary-card">
-                <div class="summary-icon blue"><i class="fas fa-tasks"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalActive">-</span>
-                    <span class="summary-label">Активные задачи</span>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page: Dashboard -->
+            <div class="page" id="page-dashboard">
+                <div class="page-header">
+                    <h1>Обзор команды</h1>
+                    <span class="page-subtitle">Системные аналитики | ForteBank</span>
                 </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon green"><i class="fas fa-check-circle"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalCompletedToday">-</span>
-                    <span class="summary-label">Выполнено сегодня</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon purple"><i class="fas fa-calendar-check"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalCompletedMonth">-</span>
-                    <span class="summary-label">Выполнено за месяц</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon orange"><i class="fas fa-code-branch"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalMRs">-</span>
-                    <span class="summary-label">MR за месяц</span>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon teal"><i class="fas fa-file-alt"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalPages">-</span>
-                    <span class="summary-label">Страниц Confluence</span>
-                </div>
-            </div>
-            <div class="summary-card" id="alertsSummaryCard">
-                <div class="summary-icon red"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="summary-content">
-                    <span class="summary-value" id="totalAlerts">-</span>
-                    <span class="summary-label">Алерты</span>
-                </div>
-            </div>
-        </section>
 
-        <!-- Alerts Banner -->
-        <section class="alerts-section" id="alertsSection" style="display:none;">
-            <div class="alerts-header">
-                <h3><i class="fas fa-bell"></i> Активные алерты</h3>
-                <button class="btn-collapse" onclick="toggleAlerts()">
-                    <i class="fas fa-chevron-down" id="alertsToggleIcon"></i>
-                </button>
-            </div>
-            <div class="alerts-list" id="alertsList"></div>
-        </section>
+                <!-- Summary Cards -->
+                <section class="summary-section">
+                    <div class="summary-card">
+                        <div class="summary-icon blue"><i class="fas fa-tasks"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalActive">-</span>
+                            <span class="summary-label">Активные задачи</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon green"><i class="fas fa-check-circle"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalCompletedToday">-</span>
+                            <span class="summary-label">Выполнено сегодня</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon purple"><i class="fas fa-calendar-check"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalCompletedMonth">-</span>
+                            <span class="summary-label">Выполнено за месяц</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon orange"><i class="fas fa-code-branch"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalMRs">-</span>
+                            <span class="summary-label">MR за месяц</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon teal"><i class="fas fa-file-alt"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalPages">-</span>
+                            <span class="summary-label">Страниц Confluence</span>
+                        </div>
+                    </div>
+                    <div class="summary-card" id="alertsSummaryCard">
+                        <div class="summary-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="summary-content">
+                            <span class="summary-value" id="totalAlerts">-</span>
+                            <span class="summary-label">Алерты</span>
+                        </div>
+                    </div>
+                </section>
 
-        <!-- Employee Cards -->
-        <section class="employees-section">
-            <h2 class="section-title">Сотрудники</h2>
-            <div class="employees-grid" id="employeesGrid">
-                <!-- Cards will be generated by JS -->
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Загрузка данных...</p>
+                <!-- Alerts -->
+                <section class="alerts-section" id="alertsSection" style="display:none;">
+                    <div class="alerts-header">
+                        <h3><i class="fas fa-bell"></i> Активные алерты</h3>
+                        <button class="btn-collapse" onclick="toggleAlerts()">
+                            <i class="fas fa-chevron-down" id="alertsToggleIcon"></i>
+                        </button>
+                    </div>
+                    <div class="alerts-list" id="alertsList"></div>
+                </section>
+
+                <!-- Employee Cards -->
+                <section class="employees-section">
+                    <h2 class="section-title">Сотрудники</h2>
+                    <div class="employees-grid" id="employeesGrid">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Загрузка данных...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Tasks -->
+            <div class="page hidden" id="page-tasks">
+                <div class="page-header">
+                    <h1>Задачи Jira</h1>
+                    <span class="page-subtitle">Детали по задачам сотрудников</span>
+                </div>
+                <div class="filters-bar">
+                    <select class="filter-select" id="tasksFilterEmployee" onchange="filterTasks()">
+                        <option value="all">Все сотрудники</option>
+                    </select>
+                    <select class="filter-select" id="tasksFilterStatus" onchange="filterTasks()">
+                        <option value="all">Все статусы</option>
+                    </select>
+                    <select class="filter-select" id="tasksFilterType" onchange="filterTasks()">
+                        <option value="all">Все типы</option>
+                    </select>
+                </div>
+                <div class="tasks-table-container">
+                    <table class="data-table" id="tasksTable">
+                        <thead>
+                            <tr>
+                                <th>Ключ</th>
+                                <th>Сотрудник</th>
+                                <th>Задача</th>
+                                <th>Тип</th>
+                                <th>Статус</th>
+                                <th>Дней в статусе</th>
+                                <th>Замечания</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody">
+                            <tr><td colspan="7" class="loading-cell"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
+
+            <!-- Page: Merge Requests -->
+            <div class="page hidden" id="page-merge-requests">
+                <div class="page-header">
+                    <h1>Merge Requests</h1>
+                    <span class="page-subtitle">GitLab активность команды</span>
+                </div>
+                <div class="mr-grid" id="mrGrid">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Загрузка данных...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page: Confluence -->
+            <div class="page hidden" id="page-confluence">
+                <div class="page-header">
+                    <h1>Документация Confluence</h1>
+                    <span class="page-subtitle">Активность и качество документации</span>
+                </div>
+                <div class="confluence-grid" id="confluenceGrid">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Загрузка данных...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="js/app.js"></script>

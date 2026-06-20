@@ -173,6 +173,9 @@ func (h *Handler) collectData() {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/dashboard", h.handleDashboard)
 	mux.HandleFunc("/api/alerts", h.handleAlerts)
+	mux.HandleFunc("/api/tasks", h.handleTasks)
+	mux.HandleFunc("/api/merge-requests", h.handleMergeRequests)
+	mux.HandleFunc("/api/confluence", h.handleConfluence)
 	mux.HandleFunc("/api/health", h.handleHealth)
 }
 
@@ -213,4 +216,93 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":       "ok",
 		"last_updated": h.lastUpdated,
 	})
+}
+
+func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	data := h.dashboard
+	h.mu.RUnlock()
+
+	if data == nil {
+		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
+		return
+	}
+
+	type TaskDetail struct {
+		Employee string           `json:"employee"`
+		Issues   []models.JiraIssue `json:"issues"`
+	}
+
+	var result []TaskDetail
+	for _, emp := range data.Employees {
+		// Re-fetch tasks for detail view
+		issues, err := h.jira.GetEmployeeTasks(emp.Employee)
+		if err != nil {
+			issues = []models.JiraIssue{}
+		}
+		result = append(result, TaskDetail{
+			Employee: emp.Employee.Name,
+			Issues:   issues,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	data := h.dashboard
+	h.mu.RUnlock()
+
+	if data == nil {
+		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
+		return
+	}
+
+	type MRDetail struct {
+		Employee string             `json:"employee"`
+		Metrics  models.GitLabMetrics `json:"metrics"`
+	}
+
+	var result []MRDetail
+	for _, emp := range data.Employees {
+		result = append(result, MRDetail{
+			Employee: emp.Employee.Name,
+			Metrics:  emp.GitLab,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	data := h.dashboard
+	h.mu.RUnlock()
+
+	if data == nil {
+		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
+		return
+	}
+
+	type ConfDetail struct {
+		Employee string                  `json:"employee"`
+		Metrics  models.ConfluenceMetrics `json:"metrics"`
+	}
+
+	var result []ConfDetail
+	for _, emp := range data.Employees {
+		result = append(result, ConfDetail{
+			Employee: emp.Employee.Name,
+			Metrics:  emp.Confluence,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(result)
 }
