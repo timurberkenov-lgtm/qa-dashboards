@@ -79,37 +79,25 @@ func (j *JiraCollector) GetAnalysisTasks(employee models.Employee) ([]models.Jir
 	return j.searchIssues(jql)
 }
 
-// GetEmployeeTasksSince returns all tasks (active + resolved) for an employee in a date range
+// GetEmployeeTasksSince returns all tasks for an employee since a date (no upper bound)
 func (j *JiraCollector) GetEmployeeTasksSince(employee models.Employee, since time.Time) ([]models.JiraIssue, error) {
 	return j.GetEmployeeTasksRange(employee, since, time.Time{})
 }
 
-// GetEmployeeTasksRange returns tasks for a specific date range (since <= updated < until)
+// GetEmployeeTasksRange returns tasks created in a specific date range across ALL projects
 func (j *JiraCollector) GetEmployeeTasksRange(employee models.Employee, since time.Time, until time.Time) ([]models.JiraIssue, error) {
 	sinceStr := since.Format("2006-01-02")
 
 	var dateFilter string
 	if until.IsZero() {
-		// No upper bound — from since to now
-		dateFilter = fmt.Sprintf(`(updated >= "%s" OR created >= "%s")`, sinceStr, sinceStr)
+		dateFilter = fmt.Sprintf(`created >= "%s"`, sinceStr)
 	} else {
 		untilStr := until.Format("2006-01-02")
-		dateFilter = fmt.Sprintf(`((updated >= "%s" AND updated < "%s") OR (created >= "%s" AND created < "%s"))`, sinceStr, untilStr, sinceStr, untilStr)
+		dateFilter = fmt.Sprintf(`created >= "%s" AND created < "%s"`, sinceStr, untilStr)
 	}
 
-	var jql string
-	if len(employee.JiraProjects) == 0 {
-		jql = fmt.Sprintf(`assignee = "%s" AND %s ORDER BY updated DESC`, employee.Email, dateFilter)
-	} else {
-		projects := ""
-		for i, p := range employee.JiraProjects {
-			if i > 0 {
-				projects += ", "
-			}
-			projects += p
-		}
-		jql = fmt.Sprintf(`project IN (%s) AND assignee = "%s" AND %s ORDER BY updated DESC`, projects, employee.Email, dateFilter)
-	}
+	// Search across ALL projects where employee is assignee
+	jql := fmt.Sprintf(`assignee = "%s" AND %s ORDER BY created DESC`, employee.Email, dateFilter)
 	return j.searchIssues(jql)
 }
 
