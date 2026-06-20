@@ -271,7 +271,13 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 		ed.Confluence = confMetrics
 
 		// GitLab — use filtered period
-		mrs, _ := h.gitlab.GetEmployeeMRDetailsSince(emp, monthStart)
+		var mrs []models.MergeRequest
+		if monthParam == "all" {
+			mrs, _ = h.gitlab.GetEmployeeMRDetailsSince(emp, monthStart)
+		} else {
+			_, mEnd := getMonthRange(r)
+			mrs, _ = h.gitlab.GetEmployeeMRDetailsRange(emp, monthStart, mEnd)
+		}
 		gitMetrics := countMRMetrics(mrs)
 		ed.GitLab = gitMetrics
 
@@ -424,11 +430,17 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	h.mu.RUnlock()
 
-	monthStart, _ := getMonthRange(r)
+	monthStart, monthEnd := getMonthRange(r)
 
 	var result []models.MRDetailResponse
 	for _, emp := range data.Employees {
-		mrs, err := h.gitlab.GetEmployeeMRDetailsSince(emp.Employee, monthStart)
+		var mrs []models.MergeRequest
+		var err error
+		if r.URL.Query().Get("month") == "all" {
+			mrs, err = h.gitlab.GetEmployeeMRDetailsSince(emp.Employee, monthStart)
+		} else {
+			mrs, err = h.gitlab.GetEmployeeMRDetailsRange(emp.Employee, monthStart, monthEnd)
+		}
 		if err != nil {
 			mrs = []models.MergeRequest{}
 		}
@@ -477,11 +489,17 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 	}
 	h.mu.RUnlock()
 
-	monthStart, _ := getMonthRange(r)
+	monthStart, monthEnd := getMonthRange(r)
 
 	var result []models.ConfluenceDetailResponse
 	for _, emp := range data.Employees {
-		pages, err := h.confluence.GetEmployeePageDetailsSince(emp.Employee, monthStart)
+		var pages []models.ConfluencePage
+		var err error
+		if r.URL.Query().Get("month") == "all" {
+			pages, err = h.confluence.GetEmployeePageDetailsSince(emp.Employee, monthStart)
+		} else {
+			pages, err = h.confluence.GetEmployeePageDetailsRange(emp.Employee, monthStart, monthEnd)
+		}
 		if err != nil {
 			pages = []models.ConfluencePage{}
 		}

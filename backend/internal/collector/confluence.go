@@ -84,18 +84,30 @@ func (c *ConfluenceCollector) GetEmployeePageDetails(employee models.Employee) (
 	username := extractConfUsername(employee.Email)
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	return c.searchPagesDetailed(username, monthStart)
+	monthEnd := monthStart.AddDate(0, 1, 0)
+	return c.searchPagesDetailedRange(username, monthStart, monthEnd)
 }
 
-// GetEmployeePageDetailsSince returns pages since a specific date
+// GetEmployeePageDetailsSince returns pages since a specific date (no upper bound)
 func (c *ConfluenceCollector) GetEmployeePageDetailsSince(employee models.Employee, since time.Time) ([]models.ConfluencePage, error) {
-	username := extractConfUsername(employee.Email)
-	return c.searchPagesDetailed(username, since)
+	return c.GetEmployeePageDetailsRange(employee, since, time.Time{})
 }
 
-func (c *ConfluenceCollector) searchPagesDetailed(username string, since time.Time) ([]models.ConfluencePage, error) {
+// GetEmployeePageDetailsRange returns pages in a date range
+func (c *ConfluenceCollector) GetEmployeePageDetailsRange(employee models.Employee, since time.Time, until time.Time) ([]models.ConfluencePage, error) {
+	username := extractConfUsername(employee.Email)
+	return c.searchPagesDetailedRange(username, since, until)
+}
+
+func (c *ConfluenceCollector) searchPagesDetailedRange(username string, since time.Time, until time.Time) ([]models.ConfluencePage, error) {
 	sinceStr := since.Format("2006-01-02")
-	cql := fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND type = page`, username, username, sinceStr)
+	var cql string
+	if until.IsZero() {
+		cql = fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND type = page`, username, username, sinceStr)
+	} else {
+		untilStr := until.Format("2006-01-02")
+		cql = fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND lastModified < "%s" AND type = page`, username, username, sinceStr, untilStr)
+	}
 
 	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=50&expand=version,space,body.storage",
 		c.cfg.Confluence.URL, url.QueryEscape(cql))

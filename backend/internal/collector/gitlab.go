@@ -71,18 +71,24 @@ func (g *GitLabCollector) GetEmployeeMetrics(employee models.Employee) (models.G
 	return metrics, nil
 }
 
-// GetEmployeeMRDetails returns detailed merge requests for an employee
+// GetEmployeeMRDetails returns detailed merge requests for an employee (current month)
 func (g *GitLabCollector) GetEmployeeMRDetails(employee models.Employee) ([]models.MergeRequest, error) {
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	return g.GetEmployeeMRDetailsSince(employee, monthStart)
+	monthEnd := monthStart.AddDate(0, 1, 0)
+	return g.GetEmployeeMRDetailsRange(employee, monthStart, monthEnd)
 }
 
-// GetEmployeeMRDetailsSince returns MRs since a specific date
+// GetEmployeeMRDetailsSince returns MRs since a specific date (no upper bound)
 func (g *GitLabCollector) GetEmployeeMRDetailsSince(employee models.Employee, since time.Time) ([]models.MergeRequest, error) {
+	return g.GetEmployeeMRDetailsRange(employee, since, time.Time{})
+}
+
+// GetEmployeeMRDetailsRange returns MRs in a date range
+func (g *GitLabCollector) GetEmployeeMRDetailsRange(employee models.Employee, since time.Time, until time.Time) ([]models.MergeRequest, error) {
 	now := time.Now()
 
-	mrs, err := g.getUserMRs(employee.Email, since)
+	mrs, err := g.getUserMRsRange(employee.Email, since, until)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +134,19 @@ func (g *GitLabCollector) GetEmployeeMRDetailsSince(employee models.Employee, si
 }
 
 func (g *GitLabCollector) getUserMRs(email string, since time.Time) ([]gitlabMR, error) {
+	return g.getUserMRsRange(email, since, time.Time{})
+}
+
+func (g *GitLabCollector) getUserMRsRange(email string, since time.Time, until time.Time) ([]gitlabMR, error) {
 	sinceStr := since.Format(time.RFC3339)
 	endpoint := fmt.Sprintf("%s/api/v4/merge_requests?author_username=%s&created_after=%s&per_page=100&scope=all",
 		g.cfg.GitLab.URL, url.QueryEscape(extractUsername(email)), url.QueryEscape(sinceStr))
+
+	// Add upper bound if specified
+	if !until.IsZero() {
+		untilStr := until.Format(time.RFC3339)
+		endpoint += "&created_before=" + url.QueryEscape(untilStr)
+	}
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
