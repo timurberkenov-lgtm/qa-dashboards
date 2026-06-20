@@ -28,7 +28,7 @@ type Handler struct {
 
 	mu          sync.RWMutex
 	dashboard   *models.DashboardResponse
-	cache       map[string]*models.DashboardResponse // key: month string ("2026-03", "all")
+	cache       map[string]interface{} // key: "section:month" -> cached response
 	lastUpdated time.Time
 }
 
@@ -39,7 +39,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		confluence: collector.NewConfluenceCollector(cfg),
 		gitlab:     collector.NewGitLabCollector(cfg),
 		alertEng:   alerts.NewAlertEngine(cfg),
-		cache:      make(map[string]*models.DashboardResponse),
+		cache:      make(map[string]interface{}),
 	}
 
 	go h.collectData()
@@ -186,7 +186,7 @@ func (h *Handler) collectData() {
 	}
 	h.lastUpdated = now
 	// Invalidate cache on fresh data
-	h.cache = make(map[string]*models.DashboardResponse)
+	h.cache = make(map[string]interface{})
 	h.mu.Unlock()
 
 	log.Printf("Data collection complete. %d employees, %d alerts", len(employees), len(allAlerts))
@@ -224,7 +224,7 @@ func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request, monthParam string) {
 	// Check cache first
 	h.mu.RLock()
-	if cached, ok := h.cache[monthParam]; ok {
+	if cached, ok := h.cache["dashboard:"+monthParam]; ok {
 		h.mu.RUnlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -307,7 +307,7 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 
 	// Store in cache
 	h.mu.Lock()
-	h.cache[monthParam] = &resp
+	h.cache["dashboard:"+monthParam] = &resp
 	h.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -346,6 +346,20 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	monthParam := r.URL.Query().Get("month")
+	cacheKey := "tasks:" + monthParam
+
+	// Check cache
+	h.mu.RLock()
+	if cached, ok := h.cache[cacheKey]; ok {
+		h.mu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(cached)
+		return
+	}
+	h.mu.RUnlock()
+
 	// Parse month filter
 	monthStart, _ := getMonthRange(r)
 
@@ -370,6 +384,11 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Cache result
+	h.mu.Lock()
+	h.cache[cacheKey] = result
+	h.mu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(result)
@@ -383,6 +402,20 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
+
+	monthParam := r.URL.Query().Get("month")
+	cacheKey := "mr:" + monthParam
+
+	// Check cache
+	h.mu.RLock()
+	if cached, ok := h.cache[cacheKey]; ok {
+		h.mu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(cached)
+		return
+	}
+	h.mu.RUnlock()
 
 	monthStart, _ := getMonthRange(r)
 
@@ -404,6 +437,11 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Cache result
+	h.mu.Lock()
+	h.cache[cacheKey] = result
+	h.mu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(result)
@@ -417,6 +455,20 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
+
+	monthParam := r.URL.Query().Get("month")
+	cacheKey := "confluence:" + monthParam
+
+	// Check cache
+	h.mu.RLock()
+	if cached, ok := h.cache[cacheKey]; ok {
+		h.mu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(cached)
+		return
+	}
+	h.mu.RUnlock()
 
 	monthStart, _ := getMonthRange(r)
 
@@ -437,6 +489,11 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 			Conclusion: conclusion,
 		})
 	}
+
+	// Cache result
+	h.mu.Lock()
+	h.cache[cacheKey] = result
+	h.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
