@@ -71,6 +71,56 @@ func (g *GitLabCollector) GetEmployeeMetrics(employee models.Employee) (models.G
 	return metrics, nil
 }
 
+// GetEmployeeMRDetails returns detailed merge requests for an employee
+func (g *GitLabCollector) GetEmployeeMRDetails(employee models.Employee) ([]models.MergeRequest, error) {
+	now := time.Now()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	mrs, err := g.getUserMRs(employee.Email, monthStart)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []models.MergeRequest
+	for _, mr := range mrs {
+		created, _ := time.Parse(time.RFC3339, mr.CreatedAt)
+		daysOpen := int(now.Sub(created).Hours() / 24)
+
+		var reviewers []string
+		for _, r := range mr.Reviewers {
+			reviewers = append(reviewers, r.Name)
+		}
+
+		item := models.MergeRequest{
+			ID:             mr.ID,
+			IID:            mr.IID,
+			Title:          mr.Title,
+			State:          mr.State,
+			URL:            mr.WebURL,
+			Author:         mr.Author.Name,
+			CreatedAt:      created,
+			SourceBranch:   mr.SourceBranch,
+			TargetBranch:   mr.TargetBranch,
+			Project:        mr.References.Full,
+			HasConflicts:   mr.HasConflicts,
+			Reviewers:      reviewers,
+			PipelineStatus: mr.PipelineStatus,
+			DaysOpen:       daysOpen,
+		}
+
+		if mr.MergedAt != nil {
+			if t, err := time.Parse(time.RFC3339, *mr.MergedAt); err == nil {
+				item.MergedAt = &t
+				item.DaysOpen = int(t.Sub(created).Hours() / 24)
+			}
+		}
+
+		result = append(result, item)
+	}
+
+	return result, nil
+}
+
 func (g *GitLabCollector) getUserMRs(email string, since time.Time) ([]gitlabMR, error) {
 	sinceStr := since.Format(time.RFC3339)
 	endpoint := fmt.Sprintf("%s/api/v4/merge_requests?author_username=%s&created_after=%s&per_page=100&scope=all",
@@ -141,15 +191,23 @@ func extractUsername(email string) string {
 }
 
 type gitlabMR struct {
-	ID        int           `json:"id"`
-	IID       int           `json:"iid"`
-	Title     string        `json:"title"`
-	State     string        `json:"state"`
-	CreatedAt string        `json:"created_at"`
-	MergedAt  *string       `json:"merged_at"`
-	WebURL    string        `json:"web_url"`
-	Reviewers []gitlabUser  `json:"reviewers"`
-	Author    gitlabUser    `json:"author"`
+	ID             int           `json:"id"`
+	IID            int           `json:"iid"`
+	Title          string        `json:"title"`
+	State          string        `json:"state"`
+	CreatedAt      string        `json:"created_at"`
+	MergedAt       *string       `json:"merged_at"`
+	WebURL         string        `json:"web_url"`
+	Reviewers      []gitlabUser  `json:"reviewers"`
+	Author         gitlabUser    `json:"author"`
+	SourceBranch   string        `json:"source_branch"`
+	TargetBranch   string        `json:"target_branch"`
+	ProjectPath    string        `json:"-"`
+	HasConflicts   bool          `json:"has_conflicts"`
+	PipelineStatus string        `json:"pipeline_status"`
+	References     struct {
+		Full string `json:"full"`
+	} `json:"references"`
 }
 
 type gitlabUser struct {

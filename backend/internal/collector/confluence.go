@@ -76,6 +76,86 @@ func (c *ConfluenceCollector) GetEmployeeMetrics(employee models.Employee) (mode
 	return metrics, nil
 }
 
+// GetEmployeePageDetails returns detailed page info for an employee
+func (c *ConfluenceCollector) GetEmployeePageDetails(employee models.Employee) ([]models.ConfluencePage, error) {
+	now := time.Now()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	pages, err := c.searchPagesDetailed(employee.Email, monthStart)
+	if err != nil {
+		return nil, err
+	}
+
+	return pages, nil
+}
+
+func (c *ConfluenceCollector) searchPagesDetailed(email string, since time.Time) ([]models.ConfluencePage, error) {
+	sinceStr := since.Format("2006-01-02")
+	cql := fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND type = page`, email, email, sinceStr)
+
+	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=50&expand=version,space,body.storage",
+		c.cfg.Confluence.URL, url.QueryEscape(cql))
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.cfg.Confluence.Token)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("confluence detail request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("confluence returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result confluenceDetailResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	var pages []models.ConfluencePage
+	for _, r := range result.Results {
+		var lastUpdated time.Time
+		if r.Version.When != "" {
+			lastUpdated, _ = time.Parse("2006-01-02T15:04:05.000Z", r.Version.When)
+			if lastUpdated.IsZero() {
+				lastUpdated, _ = time.Parse(time.RFC3339, r.Version.When)
+			}
+		}
+
+		bodyLen := 0
+		if r.Body.Storage.Value != "" {
+			bodyLen = len(r.Body.Storage.Value)
+		}
+
+		daysOld := 0
+		if !lastUpdated.IsZero() {
+			daysOld = int(now.Sub(lastUpdated).Hours() / 24)
+		}
+
+		pages = append(pages, models.ConfluencePage{
+			ID:              r.ID,
+			Title:           r.Title,
+			Space:           r.Space.Key,
+			SpaceName:       r.Space.Name,
+			URL:             fmt.Sprintf("%s/pages/viewpage.action?pageId=%s", c.cfg.Confluence.URL, r.ID),
+			Creator:         r.Version.By.DisplayName,
+			LastUpdated:     lastUpdated,
+			Version:         r.Version.Number,
+			BodyLength:      bodyLen,
+			DaysSinceUpdate: daysOld,
+		})
+	}
+
+	return pages, nil
+}
+
 func (c *ConfluenceCollector) searchPages(email, dateField string, since time.Time) ([]string, error) {
 	sinceStr := since.Format("2006-01-02")
 	cql := fmt.Sprintf(`creator = "%s" AND %s >= "%s" AND type = page`, email, dateField, sinceStr)
@@ -186,4 +266,29 @@ type confluencePage struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
 	Type  string `json:"type"`
+}
+
+type confluenceDetailResult struct {
+	Results []confluenceDetailPage `json:"results"`
+}
+
+type confluenceDetailPage struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Space   struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"space"`
+	Version struct {
+		Number int    `json:"number"`
+		When   string `json:"when"`
+		By     struct {
+			DisplayName string `json:"displayName"`
+		} `json:"by"`
+	} `json:"version"`
+	Body struct {
+		Storage struct {
+			Value string `json:"value"`
+		} `json:"storage"`
+	} `json:"body"`
 }

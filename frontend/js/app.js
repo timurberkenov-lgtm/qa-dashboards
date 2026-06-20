@@ -269,127 +269,290 @@ function getTaskComments(issue) {
 }
 
 // === MERGE REQUESTS PAGE ===
+let mrData = null;
+
 async function loadMergeRequests() {
     try {
         const resp = await fetch(`${API_BASE}/api/merge-requests`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        renderMRPage(data);
+        mrData = await resp.json();
+        renderMRPage(mrData);
     } catch (err) {
         console.error('Failed to load MRs:', err);
     }
 }
 
 function renderMRPage(data) {
-    const grid = document.getElementById('mrGrid');
+    // Populate employee filter
+    const empFilter = document.getElementById('mrFilterEmployee');
+    empFilter.innerHTML = '<option value="all">Все сотрудники</option>' +
+        data.map(d => `<option value="${d.employee}">${d.employee}</option>`).join('');
 
-    if (!data || data.length === 0) {
-        grid.innerHTML = '<div class="loading-state"><p>Нет данных</p></div>';
+    // Render conclusion
+    renderMRConclusion(data);
+
+    // Flatten all MRs
+    let allMRs = [];
+    data.forEach(item => {
+        (item.mrs || []).forEach(mr => {
+            allMRs.push({ ...mr, employee: item.employee });
+        });
+    });
+
+    renderMRTable(allMRs);
+}
+
+function filterMRs() {
+    if (!mrData) return;
+
+    const empVal = document.getElementById('mrFilterEmployee').value;
+    const stateVal = document.getElementById('mrFilterState').value;
+    const pipelineVal = document.getElementById('mrFilterPipeline').value;
+
+    let allMRs = [];
+    mrData.forEach(item => {
+        (item.mrs || []).forEach(mr => {
+            allMRs.push({ ...mr, employee: item.employee });
+        });
+    });
+
+    if (empVal !== 'all') allMRs = allMRs.filter(m => m.employee === empVal);
+    if (stateVal !== 'all') allMRs = allMRs.filter(m => m.state === stateVal);
+    if (pipelineVal !== 'all') allMRs = allMRs.filter(m => m.pipeline_status === pipelineVal);
+
+    renderMRTable(allMRs);
+}
+
+function renderMRTable(mrs) {
+    const tbody = document.getElementById('mrTableBody');
+
+    if (!mrs || mrs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет merge requests</td></tr>';
         return;
     }
 
-    grid.innerHTML = data.map(item => {
-        const initials = getInitials(item.employee);
-        const m = item.metrics;
+    tbody.innerHTML = mrs.map(mr => {
+        const stateClass = mr.state;
+        const stateLabel = mr.state === 'opened' ? 'Открыт' : mr.state === 'merged' ? 'Merged' : 'Закрыт';
+        const pipelineClass = mr.pipeline_status || 'pending';
+        const pipelineLabel = getPipelineLabel(mr.pipeline_status);
+        const pipelineIcon = getPipelineIcon(mr.pipeline_status);
+        const daysClass = mr.days_open > 7 ? 'critical' : mr.days_open > 3 ? 'warning' : 'ok';
+
+        const reviewersHtml = mr.reviewers && mr.reviewers.length > 0
+            ? `<div class="reviewers-list">${mr.reviewers.map(r => `<span class="reviewer-tag">${r}</span>`).join('')}</div>`
+            : '<span class="no-reviewer">Нет ревьюера</span>';
+
         return `
-            <div class="mr-card">
-                <div class="mr-card-header">
-                    <div class="mr-card-avatar">${initials}</div>
-                    <div class="mr-card-name">${item.employee}</div>
-                </div>
-                <div class="mr-stats">
-                    <div class="mr-stat">
-                        <div class="mr-stat-value blue">${m.mrs_created_month}</div>
-                        <div class="mr-stat-label">Создано MR</div>
-                    </div>
-                    <div class="mr-stat">
-                        <div class="mr-stat-value green">${m.mrs_merged_month}</div>
-                        <div class="mr-stat-label">Merged</div>
-                    </div>
-                    <div class="mr-stat">
-                        <div class="mr-stat-value orange">${m.mrs_open}</div>
-                        <div class="mr-stat-label">Открытые</div>
-                    </div>
-                    <div class="mr-stat">
-                        <div class="mr-stat-value ${m.mrs_without_review > 0 ? 'red' : ''}">${m.mrs_without_review}</div>
-                        <div class="mr-stat-label">Без ревью</div>
-                    </div>
-                    <div class="mr-stat">
-                        <div class="mr-stat-value">${m.commits_month}</div>
-                        <div class="mr-stat-label">Коммиты/мес</div>
-                    </div>
-                    <div class="mr-stat">
-                        <div class="mr-stat-value">${m.commits_today}</div>
-                        <div class="mr-stat-label">Коммиты/день</div>
-                    </div>
-                </div>
-            </div>
+            <tr>
+                <td><a href="${mr.url}" target="_blank" class="task-key">!${mr.iid || mr.id}</a></td>
+                <td style="font-size:12px">${mr.employee}</td>
+                <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mr.title}</td>
+                <td style="font-size:11px;color:var(--text-secondary)">${mr.project || mr.source_branch}</td>
+                <td><span class="mr-state-badge ${stateClass}">${stateLabel}</span></td>
+                <td><span class="pipeline-badge ${pipelineClass}"><i class="fas ${pipelineIcon}"></i> ${pipelineLabel}</span></td>
+                <td><span class="days-badge ${daysClass}">${mr.days_open}д</span></td>
+                <td>${reviewersHtml}</td>
+            </tr>
         `;
     }).join('');
 }
 
+function renderMRConclusion(data) {
+    const el = document.getElementById('mrConclusion');
+    const conclusions = data.filter(d => d.conclusion && !d.conclusion.startsWith('Всё в порядке'));
+
+    if (conclusions.length === 0) {
+        el.style.display = 'block';
+        el.className = 'conclusion-banner';
+        el.innerHTML = `
+            <div class="conclusion-title"><i class="fas fa-check-circle"></i> Заключение</div>
+            <div class="conclusion-items">
+                <div class="conclusion-item"><span class="issue-text" style="color:var(--accent-green)">Всё в порядке. MR обрабатываются в нормальном режиме.</span></div>
+            </div>
+        `;
+        return;
+    }
+
+    el.style.display = 'block';
+    el.className = 'conclusion-banner has-issues';
+    el.innerHTML = `
+        <div class="conclusion-title"><i class="fas fa-exclamation-circle"></i> Заключение — на что обратить внимание</div>
+        <div class="conclusion-items">
+            ${data.map(d => {
+                if (d.conclusion && !d.conclusion.startsWith('Всё в порядке')) {
+                    return `<div class="conclusion-item"><span class="emp-name">${d.employee}</span><span class="issue-text">${d.conclusion.replace('Обратить внимание: ', '')}</span></div>`;
+                }
+                return '';
+            }).filter(Boolean).join('')}
+        </div>
+    `;
+}
+
+function getPipelineLabel(status) {
+    switch (status) {
+        case 'success': return 'Успешно';
+        case 'failed': return 'Ошибка';
+        case 'running': return 'Запущен';
+        case 'pending': return 'Ожидает';
+        default: return status || 'Н/Д';
+    }
+}
+
+function getPipelineIcon(status) {
+    switch (status) {
+        case 'success': return 'fa-check-circle';
+        case 'failed': return 'fa-times-circle';
+        case 'running': return 'fa-spinner fa-spin';
+        case 'pending': return 'fa-clock';
+        default: return 'fa-question-circle';
+    }
+}
+
 // === CONFLUENCE PAGE ===
+let confData = null;
+
 async function loadConfluence() {
     try {
         const resp = await fetch(`${API_BASE}/api/confluence`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        renderConfluencePage(data);
+        confData = await resp.json();
+        renderConfluencePage(confData);
     } catch (err) {
         console.error('Failed to load confluence:', err);
     }
 }
 
 function renderConfluencePage(data) {
-    const grid = document.getElementById('confluenceGrid');
+    // Populate filters
+    const empFilter = document.getElementById('confFilterEmployee');
+    const spaceFilter = document.getElementById('confFilterSpace');
 
-    if (!data || data.length === 0) {
-        grid.innerHTML = '<div class="loading-state"><p>Нет данных</p></div>';
+    empFilter.innerHTML = '<option value="all">Все сотрудники</option>' +
+        data.map(d => `<option value="${d.employee}">${d.employee}</option>`).join('');
+
+    const spaces = new Set();
+    data.forEach(item => {
+        (item.pages || []).forEach(p => {
+            if (p.space) spaces.add(p.space + '|' + (p.space_name || p.space));
+        });
+    });
+    spaceFilter.innerHTML = '<option value="all">Все пространства</option>' +
+        [...spaces].map(s => {
+            const [key, name] = s.split('|');
+            return `<option value="${key}">${key} — ${name}</option>`;
+        }).join('');
+
+    // Render conclusion
+    renderConfConclusion(data);
+
+    // Flatten pages
+    let allPages = [];
+    data.forEach(item => {
+        (item.pages || []).forEach(page => {
+            allPages.push({ ...page, employee: item.employee });
+        });
+    });
+
+    renderConfTable(allPages);
+}
+
+function filterConfluence() {
+    if (!confData) return;
+
+    const empVal = document.getElementById('confFilterEmployee').value;
+    const spaceVal = document.getElementById('confFilterSpace').value;
+
+    let allPages = [];
+    confData.forEach(item => {
+        (item.pages || []).forEach(page => {
+            allPages.push({ ...page, employee: item.employee });
+        });
+    });
+
+    if (empVal !== 'all') allPages = allPages.filter(p => p.employee === empVal);
+    if (spaceVal !== 'all') allPages = allPages.filter(p => p.space === spaceVal);
+
+    renderConfTable(allPages);
+}
+
+function renderConfTable(pages) {
+    const tbody = document.getElementById('confTableBody');
+
+    if (!pages || pages.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных о страницах</td></tr>';
         return;
     }
 
-    grid.innerHTML = data.map(item => {
-        const initials = getInitials(item.employee);
-        const m = item.metrics;
-        const score = m.quality_score || 0;
-        const scoreColor = score >= 70 ? 'var(--accent-green)' : score >= 40 ? 'var(--accent-orange)' : 'var(--accent-red)';
+    // Sort by last_updated desc
+    pages.sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
+
+    tbody.innerHTML = pages.map(page => {
+        const updatedDate = page.last_updated ? new Date(page.last_updated).toLocaleDateString('ru-RU') : '-';
+        const bodyKb = page.body_length ? (page.body_length / 1024).toFixed(1) + ' KB' : '-';
+        const quality = getPageQuality(page);
 
         return `
-            <div class="conf-card">
-                <div class="conf-card-header">
-                    <div class="conf-card-avatar">${initials}</div>
-                    <div class="conf-card-name">${item.employee}</div>
-                </div>
-                <div class="conf-stats">
-                    <div class="conf-stat">
-                        <div class="conf-stat-value">${m.pages_created_month}</div>
-                        <div class="conf-stat-label">Создано/мес</div>
-                    </div>
-                    <div class="conf-stat">
-                        <div class="conf-stat-value">${m.pages_updated_month}</div>
-                        <div class="conf-stat-label">Обновлено/мес</div>
-                    </div>
-                    <div class="conf-stat">
-                        <div class="conf-stat-value">${m.pages_created_today}</div>
-                        <div class="conf-stat-label">Создано сегодня</div>
-                    </div>
-                    <div class="conf-stat">
-                        <div class="conf-stat-value">${m.total_pages}</div>
-                        <div class="conf-stat-label">Всего страниц</div>
-                    </div>
-                </div>
-                <div class="quality-bar">
-                    <div class="quality-bar-label">
-                        <span>Качество документации</span>
-                        <span style="color:${scoreColor}">${score}%</span>
-                    </div>
-                    <div class="quality-bar-track">
-                        <div class="quality-bar-fill" style="width:${score}%;background:${scoreColor}"></div>
-                    </div>
-                </div>
-            </div>
+            <tr>
+                <td><a href="${page.url}" target="_blank" class="task-key" style="max-width:240px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${page.title}</a></td>
+                <td style="font-size:12px">${page.employee}</td>
+                <td><span style="font-size:11px;background:var(--bg-secondary);padding:2px 6px;border-radius:4px">${page.space}</span> <span style="font-size:11px;color:var(--text-muted)">${page.space_name || ''}</span></td>
+                <td style="text-align:center">v${page.version || 1}</td>
+                <td>${updatedDate} <span style="font-size:10px;color:${page.days_since_update > 30 ? 'var(--accent-red)' : 'var(--text-muted)'}"> (${page.days_since_update}д назад)</span></td>
+                <td>${bodyKb}</td>
+                <td>${quality}</td>
+            </tr>
         `;
     }).join('');
+}
+
+function getPageQuality(page) {
+    let score = 'good';
+    let label = 'Хорошо';
+
+    if (page.body_length < 200) {
+        score = 'poor';
+        label = 'Пустая';
+    } else if (page.body_length < 500) {
+        score = 'medium';
+        label = 'Мало контента';
+    } else if (page.days_since_update > 30) {
+        score = 'medium';
+        label = 'Устарела';
+    }
+
+    return `<span class="quality-indicator"><span class="quality-dot ${score}"></span> ${label}</span>`;
+}
+
+function renderConfConclusion(data) {
+    const el = document.getElementById('confConclusion');
+    const conclusions = data.filter(d => d.conclusion && !d.conclusion.startsWith('Документация ведётся'));
+
+    if (conclusions.length === 0) {
+        el.style.display = 'block';
+        el.className = 'conclusion-banner';
+        el.innerHTML = `
+            <div class="conclusion-title"><i class="fas fa-check-circle"></i> Заключение</div>
+            <div class="conclusion-items">
+                <div class="conclusion-item"><span class="issue-text" style="color:var(--accent-green)">Документация ведётся активно. Замечаний нет.</span></div>
+            </div>
+        `;
+        return;
+    }
+
+    el.style.display = 'block';
+    el.className = 'conclusion-banner has-issues';
+    el.innerHTML = `
+        <div class="conclusion-title"><i class="fas fa-exclamation-circle"></i> Заключение — на что обратить внимание</div>
+        <div class="conclusion-items">
+            ${data.map(d => {
+                if (d.conclusion && !d.conclusion.startsWith('Документация ведётся')) {
+                    return `<div class="conclusion-item"><span class="emp-name">${d.employee}</span><span class="issue-text">${d.conclusion.replace('Обратить внимание: ', '')}</span></div>`;
+                }
+                return '';
+            }).filter(Boolean).join('')}
+        </div>
+    `;
 }
 
 // === HELPERS ===

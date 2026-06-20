@@ -744,3 +744,132 @@ body {
     .summary-section { grid-template-columns: repeat(2, 1fr); }
     .employees-grid, .mr-grid, .confluence-grid { grid-template-columns: 1fr; }
 }
+
+
+/* Conclusion Banner */
+.conclusion-banner {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--accent-blue);
+}
+
+.conclusion-banner.has-issues {
+    border-left-color: var(--accent-orange);
+    background: rgba(251, 146, 60, 0.03);
+}
+
+.conclusion-banner .conclusion-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conclusion-banner .conclusion-title i {
+    color: var(--accent-blue);
+}
+
+.conclusion-banner.has-issues .conclusion-title i {
+    color: var(--accent-orange);
+}
+
+.conclusion-banner .conclusion-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.conclusion-banner .conclusion-item {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.conclusion-banner .conclusion-item .emp-name {
+    color: var(--accent-blue);
+    font-weight: 500;
+    min-width: 140px;
+}
+
+.conclusion-banner .conclusion-item .issue-text {
+    color: var(--text-primary);
+}
+
+/* Pipeline badges */
+.pipeline-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.pipeline-badge.success { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); }
+.pipeline-badge.failed { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+.pipeline-badge.running { background: rgba(76, 141, 255, 0.15); color: var(--accent-blue); }
+.pipeline-badge.pending { background: rgba(251, 191, 36, 0.15); color: var(--accent-yellow); }
+
+/* MR State badges */
+.mr-state-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.mr-state-badge.opened { background: rgba(76, 141, 255, 0.15); color: var(--accent-blue); }
+.mr-state-badge.merged { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); }
+.mr-state-badge.closed { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+
+/* Quality indicator */
+.quality-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+}
+
+.quality-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.quality-dot.good { background: var(--accent-green); }
+.quality-dot.medium { background: var(--accent-orange); }
+.quality-dot.poor { background: var(--accent-red); }
+
+/* Reviewers */
+.reviewers-list {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.reviewer-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.no-reviewer {
+    font-size: 11px;
+    color: var(--accent-orange);
+    font-style: italic;
+}

@@ -171,11 +171,42 @@
                     <h1>Merge Requests</h1>
                     <span class="page-subtitle">GitLab активность команды</span>
                 </div>
-                <div class="mr-grid" id="mrGrid">
-                    <div class="loading-state">
-                        <div class="spinner"></div>
-                        <p>Загрузка данных...</p>
-                    </div>
+                <div class="conclusion-banner" id="mrConclusion" style="display:none;"></div>
+                <div class="filters-bar">
+                    <select class="filter-select" id="mrFilterEmployee" onchange="filterMRs()">
+                        <option value="all">Все сотрудники</option>
+                    </select>
+                    <select class="filter-select" id="mrFilterState" onchange="filterMRs()">
+                        <option value="all">Все статусы</option>
+                        <option value="opened">Открытые</option>
+                        <option value="merged">Merged</option>
+                        <option value="closed">Закрытые</option>
+                    </select>
+                    <select class="filter-select" id="mrFilterPipeline" onchange="filterMRs()">
+                        <option value="all">Pipeline: все</option>
+                        <option value="success">Успешный</option>
+                        <option value="failed">Упавший</option>
+                        <option value="running">В процессе</option>
+                    </select>
+                </div>
+                <div class="tasks-table-container">
+                    <table class="data-table" id="mrTable">
+                        <thead>
+                            <tr>
+                                <th>MR</th>
+                                <th>Сотрудник</th>
+                                <th>Название</th>
+                                <th>Проект</th>
+                                <th>Статус</th>
+                                <th>Pipeline</th>
+                                <th>Дней</th>
+                                <th>Ревьюеры</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mrTableBody">
+                            <tr><td colspan="8" class="loading-cell"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -185,11 +216,32 @@
                     <h1>Документация Confluence</h1>
                     <span class="page-subtitle">Активность и качество документации</span>
                 </div>
-                <div class="confluence-grid" id="confluenceGrid">
-                    <div class="loading-state">
-                        <div class="spinner"></div>
-                        <p>Загрузка данных...</p>
-                    </div>
+                <div class="conclusion-banner" id="confConclusion" style="display:none;"></div>
+                <div class="filters-bar">
+                    <select class="filter-select" id="confFilterEmployee" onchange="filterConfluence()">
+                        <option value="all">Все сотрудники</option>
+                    </select>
+                    <select class="filter-select" id="confFilterSpace" onchange="filterConfluence()">
+                        <option value="all">Все пространства</option>
+                    </select>
+                </div>
+                <div class="tasks-table-container">
+                    <table class="data-table" id="confTable">
+                        <thead>
+                            <tr>
+                                <th>Страница</th>
+                                <th>Сотрудник</th>
+                                <th>Пространство</th>
+                                <th>Версия</th>
+                                <th>Обновлено</th>
+                                <th>Объём</th>
+                                <th>Качество</th>
+                            </tr>
+                        </thead>
+                        <tbody id="confTableBody">
+                            <tr><td colspan="7" class="loading-cell"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>

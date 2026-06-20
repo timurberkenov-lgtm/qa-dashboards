@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -261,16 +262,20 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type MRDetail struct {
-		Employee string             `json:"employee"`
-		Metrics  models.GitLabMetrics `json:"metrics"`
-	}
-
-	var result []MRDetail
+	var result []models.MRDetailResponse
 	for _, emp := range data.Employees {
-		result = append(result, MRDetail{
-			Employee: emp.Employee.Name,
-			Metrics:  emp.GitLab,
+		mrs, err := h.gitlab.GetEmployeeMRDetails(emp.Employee)
+		if err != nil {
+			mrs = []models.MergeRequest{}
+		}
+
+		conclusion := generateMRConclusion(emp.Employee.Name, mrs, emp.GitLab)
+
+		result = append(result, models.MRDetailResponse{
+			Employee:   emp.Employee.Name,
+			MRs:        mrs,
+			Metrics:    emp.GitLab,
+			Conclusion: conclusion,
 		})
 	}
 
@@ -289,20 +294,133 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type ConfDetail struct {
-		Employee string                  `json:"employee"`
-		Metrics  models.ConfluenceMetrics `json:"metrics"`
-	}
-
-	var result []ConfDetail
+	var result []models.ConfluenceDetailResponse
 	for _, emp := range data.Employees {
-		result = append(result, ConfDetail{
-			Employee: emp.Employee.Name,
-			Metrics:  emp.Confluence,
+		pages, err := h.confluence.GetEmployeePageDetails(emp.Employee)
+		if err != nil {
+			pages = []models.ConfluencePage{}
+		}
+
+		conclusion := generateConfluenceConclusion(emp.Employee.Name, pages, emp.Confluence)
+
+		result = append(result, models.ConfluenceDetailResponse{
+			Employee:   emp.Employee.Name,
+			Pages:      pages,
+			Metrics:    emp.Confluence,
+			Conclusion: conclusion,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(result)
+}
+
+func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models.GitLabMetrics) string {
+	var issues []string
+
+	// Check for long-open MRs
+	longOpen := 0
+	for _, mr := range mrs {
+		if mr.State == "opened" && mr.DaysOpen > 3 {
+			longOpen++
+		}
+	}
+	if longOpen > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR открыты более 3 дней — требуют внимания", longOpen))
+	}
+
+	// Check for failed pipelines
+	failedPipelines := 0
+	for _, mr := range mrs {
+		if mr.PipelineStatus == "failed" {
+			failedPipelines++
+		}
+	}
+	if failedPipelines > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR с упавшим pipeline — необходимо исправить", failedPipelines))
+	}
+
+	// Check MRs without review
+	if metrics.MRsWithoutReview > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR без назначенного ревьюера", metrics.MRsWithoutReview))
+	}
+
+	// Check conflicts
+	conflicts := 0
+	for _, mr := range mrs {
+		if mr.HasConflicts {
+			conflicts++
+		}
+	}
+	if conflicts > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR с конфликтами — нужен rebase", conflicts))
+	}
+
+	// No activity
+	if metrics.MRsCreatedMonth == 0 && len(mrs) == 0 {
+		issues = append(issues, "Нет активности по MR за текущий месяц")
+	}
+
+	if len(issues) == 0 {
+		return "Всё в порядке. MR обрабатываются в нормальном режиме."
+	}
+
+	result := "Обратить внимание: "
+	for i, issue := range issues {
+		if i > 0 {
+			result += "; "
+		}
+		result += issue
+	}
+	return result
+}
+
+func generateConfluenceConclusion(name string, pages []models.ConfluencePage, metrics models.ConfluenceMetrics) string {
+	var issues []string
+
+	// No activity
+	if metrics.PagesCreatedMonth == 0 && metrics.PagesUpdatedMonth == 0 {
+		issues = append(issues, "Нет активности в Confluence за текущий месяц — документация не ведётся")
+	}
+
+	// Short pages (poor quality)
+	shortPages := 0
+	for _, p := range pages {
+		if p.BodyLength < 500 && p.BodyLength > 0 {
+			shortPages++
+		}
+	}
+	if shortPages > 0 {
+		issues = append(issues, fmt.Sprintf("%d страниц с минимальным содержимым (<500 символов) — возможно неполная документация", shortPages))
+	}
+
+	// Stale pages
+	stalePages := 0
+	for _, p := range pages {
+		if p.DaysSinceUpdate > 30 {
+			stalePages++
+		}
+	}
+	if stalePages > 0 {
+		issues = append(issues, fmt.Sprintf("%d страниц не обновлялись более 30 дней", stalePages))
+	}
+
+	// Low quality score
+	if metrics.QualityScore < 50 {
+		issues = append(issues, "Низкий общий показатель качества документации")
+	}
+
+	if len(issues) == 0 {
+		return "Документация ведётся активно. Замечаний нет."
+	}
+
+	result := "Обратить внимание: "
+	for i, issue := range issues {
+		if i > 0 {
+			result += "; "
+		}
+		result += issue
+	}
+	return result
 }

@@ -101,3 +101,52 @@ type JiraIssue struct {
 	Project      string    `json:"project"`
 	URL          string    `json:"url"`
 }
+
+// MergeRequest represents a GitLab merge request with details
+type MergeRequest struct {
+	ID          int       `json:"id"`
+	IID         int       `json:"iid"`
+	Title       string    `json:"title"`
+	State       string    `json:"state"` // opened, merged, closed
+	URL         string    `json:"url"`
+	Author      string    `json:"author"`
+	CreatedAt   time.Time `json:"created_at"`
+	MergedAt    *time.Time `json:"merged_at,omitempty"`
+	SourceBranch string   `json:"source_branch"`
+	TargetBranch string   `json:"target_branch"`
+	Project     string    `json:"project"`
+	HasConflicts bool     `json:"has_conflicts"`
+	Reviewers   []string  `json:"reviewers"`
+	PipelineStatus string `json:"pipeline_status"` // success, failed, running, pending
+	DaysOpen    int       `json:"days_open"`
+}
+
+// ConfluencePage represents a Confluence page with details
+type ConfluencePage struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Space       string    `json:"space"`
+	SpaceName   string    `json:"space_name"`
+	URL         string    `json:"url"`
+	Creator     string    `json:"creator"`
+	LastUpdated time.Time `json:"last_updated"`
+	Version     int       `json:"version"`
+	BodyLength  int       `json:"body_length"` // content length as quality indicator
+	DaysSinceUpdate int  `json:"days_since_update"`
+}
+
+// MRDetailResponse is the response for merge requests page
+type MRDetailResponse struct {
+	Employee    string         `json:"employee"`
+	MRs         []MergeRequest `json:"mrs"`
+	Metrics     GitLabMetrics  `json:"metrics"`
+	Conclusion  string         `json:"conclusion"`
+}
+
+// ConfluenceDetailResponse is the response for confluence page
+type ConfluenceDetailResponse struct {
+	Employee    string           `json:"employee"`
+	Pages       []ConfluencePage `json:"pages"`
+	Metrics     ConfluenceMetrics `json:"metrics"`
+	Conclusion  string           `json:"conclusion"`
+}
