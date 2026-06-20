@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -164,7 +165,7 @@ func (h *Handler) collectData() {
 		summary.TotalActiveTasks += ed.Tasks.ActiveTasks
 		summary.TotalCompletedToday += ed.Tasks.CompletedToday
 		summary.TotalCompletedMonth += ed.Tasks.CompletedMonth
-		summary.TotalMRsMonth += ed.GitLab.MRsCreatedMonth
+		summary.TotalMRsMonth += ed.GitLab.MRsMergedMonth
 		summary.TotalPagesMonth += ed.Confluence.PagesCreatedMonth + ed.Confluence.PagesUpdatedMonth
 	}
 	summary.TotalAlerts = len(allAlerts)
@@ -235,7 +236,9 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 		for _, issue := range issues {
 			ed.Tasks.ByStatus[issue.Status]++
 			ed.Tasks.ByType[issue.Type]++
-			if issue.Status == "Закрыт" || issue.Status == "Closed" || issue.Status == "Done" || issue.Status == "Выполнено" || issue.Status == "READY FOR DEVELOPMENT" || issue.Status == "ГОТОВО К ОЦЕНКЕ" || issue.Status == "ГОТОВО" || issue.Status == "Готово к тестированию" {
+			// Check if task is completed (case-insensitive check)
+			status := strings.ToLower(issue.Status)
+			if isCompletedStatus(status) {
 				ed.Tasks.CompletedMonth++
 			} else {
 				ed.Tasks.ActiveTasks++
@@ -251,8 +254,9 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 		confMetrics, _ := h.confluence.GetEmployeeMetrics(emp)
 		ed.Confluence = confMetrics
 
-		// GitLab
-		gitMetrics, _ := h.gitlab.GetEmployeeMetrics(emp)
+		// GitLab — use filtered period
+		mrs, _ := h.gitlab.GetEmployeeMRDetailsSince(emp, monthStart)
+		gitMetrics := countMRMetrics(mrs)
 		ed.GitLab = gitMetrics
 
 		// Alerts
@@ -268,7 +272,7 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 	for _, ed := range employees {
 		summary.TotalActiveTasks += ed.Tasks.ActiveTasks
 		summary.TotalCompletedMonth += ed.Tasks.CompletedMonth
-		summary.TotalMRsMonth += ed.GitLab.MRsCreatedMonth
+		summary.TotalMRsMonth += ed.GitLab.MRsMergedMonth
 		summary.TotalPagesMonth += ed.Confluence.PagesCreatedMonth + ed.Confluence.PagesUpdatedMonth
 	}
 	summary.TotalAlerts = len(allAlerts)
@@ -590,3 +594,22 @@ func countMRMetrics(mrs []models.MergeRequest) models.GitLabMetrics {
 
 // helper for unused import
 var _ = strconv.Itoa
+
+// isCompletedStatus checks if a lowercased status name indicates completion
+func isCompletedStatus(status string) bool {
+	completedStatuses := []string{
+		"готово", "выполнено", "done", "closed", "закрыт", "закрыта",
+		"ready for development", "готово к оценке", "готова к archqg",
+		"готово к тестированию", "resolved", "complete", "завершено",
+	}
+	for _, s := range completedStatuses {
+		if status == s {
+			return true
+		}
+	}
+	// Also check if contains key words
+	if strings.Contains(status, "готово") || strings.Contains(status, "done") || strings.Contains(status, "closed") || strings.Contains(status, "resolved") {
+		return true
+	}
+	return false
+}
