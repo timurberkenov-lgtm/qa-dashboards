@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +14,9 @@ import (
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/config"
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/models"
 )
+
+// Data collection start date
+var dataStartDate = time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)
 
 type Handler struct {
 	cfg        *config.Config
@@ -35,10 +39,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		alertEng:   alerts.NewAlertEngine(cfg),
 	}
 
-	// Initial data load
 	go h.collectData()
-
-	// Start polling
 	go h.startPolling()
 
 	return h
@@ -47,10 +48,30 @@ func NewHandler(cfg *config.Config) *Handler {
 func (h *Handler) startPolling() {
 	ticker := time.NewTicker(h.cfg.Server.PollInterval)
 	defer ticker.Stop()
-
 	for range ticker.C {
 		h.collectData()
 	}
+}
+
+// getMonthRange parses ?month=2026-03 or defaults to current month
+func getMonthRange(r *http.Request) (time.Time, time.Time) {
+	monthParam := r.URL.Query().Get("month")
+	now := time.Now()
+
+	if monthParam != "" {
+		// Parse YYYY-MM
+		t, err := time.Parse("2006-01", monthParam)
+		if err == nil {
+			start := t
+			end := t.AddDate(0, 1, 0)
+			return start, end
+		}
+	}
+
+	// Default: current month
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	end := start.AddDate(0, 1, 0)
+	return start, end
 }
 
 func (h *Handler) collectData() {
@@ -68,7 +89,7 @@ func (h *Handler) collectData() {
 			LastUpdated: now,
 		}
 
-		// Jira tasks
+		// Jira active tasks
 		activeTasks, err := h.jira.GetEmployeeTasks(emp)
 		if err != nil {
 			log.Printf("Error fetching Jira tasks for %s: %v", emp.Name, err)
@@ -76,12 +97,9 @@ func (h *Handler) collectData() {
 			ed.Tasks.ActiveTasks = len(activeTasks)
 			ed.Tasks.ByStatus = make(map[string]int)
 			ed.Tasks.ByType = make(map[string]int)
-
 			for _, task := range activeTasks {
 				ed.Tasks.ByStatus[task.Status]++
 				ed.Tasks.ByType[task.Type]++
-
-				// Check stale
 				daysInStatus := int(now.Sub(task.StatusSince).Hours() / 24)
 				if daysInStatus >= h.cfg.Alerts.StaleTaskDays {
 					ed.Tasks.StaleTasks++
@@ -89,21 +107,17 @@ func (h *Handler) collectData() {
 			}
 		}
 
-		// Completed tasks - month
+		// Completed tasks - current month
 		completedMonth, err := h.jira.GetCompletedTasks(emp, monthStart)
 		if err != nil {
 			log.Printf("Error fetching completed tasks for %s: %v", emp.Name, err)
 		} else {
 			ed.Tasks.CompletedMonth = len(completedMonth)
-
-			// Completed today
 			for _, task := range completedMonth {
 				if task.Updated.After(todayStart) {
 					ed.Tasks.CompletedToday++
 				}
 			}
-
-			// Calculate avg cycle time
 			if len(completedMonth) > 0 {
 				var totalDays float64
 				for _, task := range completedMonth {
@@ -119,7 +133,7 @@ func (h *Handler) collectData() {
 		// Confluence
 		confMetrics, err := h.confluence.GetEmployeeMetrics(emp)
 		if err != nil {
-			log.Printf("Error fetching Confluence metrics for %s: %v", emp.Name, err)
+			log.Printf("Error fetching Confluence for %s: %v", emp.Name, err)
 		} else {
 			ed.Confluence = confMetrics
 		}
@@ -127,7 +141,7 @@ func (h *Handler) collectData() {
 		// GitLab
 		gitMetrics, err := h.gitlab.GetEmployeeMetrics(emp)
 		if err != nil {
-			log.Printf("Error fetching GitLab metrics for %s: %v", emp.Name, err)
+			log.Printf("Error fetching GitLab for %s: %v", emp.Name, err)
 		} else {
 			ed.GitLab = gitMetrics
 		}
@@ -140,7 +154,7 @@ func (h *Handler) collectData() {
 		employees = append(employees, ed)
 	}
 
-	// Build summary
+	// Summary
 	summary := models.TeamSummary{}
 	for _, ed := range employees {
 		summary.TotalActiveTasks += ed.Tasks.ActiveTasks
@@ -156,7 +170,6 @@ func (h *Handler) collectData() {
 		}
 	}
 
-	// Update dashboard
 	h.mu.Lock()
 	h.dashboard = &models.DashboardResponse{
 		Employees:   employees,
@@ -170,7 +183,6 @@ func (h *Handler) collectData() {
 	log.Printf("Data collection complete. %d employees, %d alerts", len(employees), len(allAlerts))
 }
 
-// ServeHTTP handles all API requests
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/dashboard", h.handleDashboard)
 	mux.HandleFunc("/api/alerts", h.handleAlerts)
@@ -184,12 +196,10 @@ func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
-
 	if data == nil {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(data)
@@ -199,12 +209,10 @@ func (h *Handler) handleAlerts(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
-
 	if data == nil {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(data.Alerts)
@@ -223,27 +231,32 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
-
 	if data == nil {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
 
-	type TaskDetail struct {
-		Employee string           `json:"employee"`
-		Issues   []models.JiraIssue `json:"issues"`
+	// Parse month filter
+	monthStart, _ := getMonthRange(r)
+
+	type TasksResponse struct {
+		Employee   string             `json:"employee"`
+		Issues     []models.JiraIssue `json:"issues"`
+		Conclusion string             `json:"conclusion"`
 	}
 
-	var result []TaskDetail
+	var result []TasksResponse
 	for _, emp := range data.Employees {
-		// Re-fetch tasks for detail view
-		issues, err := h.jira.GetEmployeeTasks(emp.Employee)
+		issues, err := h.jira.GetEmployeeTasksSince(emp.Employee, monthStart)
 		if err != nil {
 			issues = []models.JiraIssue{}
 		}
-		result = append(result, TaskDetail{
-			Employee: emp.Employee.Name,
-			Issues:   issues,
+
+		conclusion := generateTasksConclusion(emp.Employee.Name, issues, emp.Tasks)
+		result = append(result, TasksResponse{
+			Employee:   emp.Employee.Name,
+			Issues:     issues,
+			Conclusion: conclusion,
 		})
 	}
 
@@ -256,25 +269,27 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
-
 	if data == nil {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
 
+	monthStart, _ := getMonthRange(r)
+
 	var result []models.MRDetailResponse
 	for _, emp := range data.Employees {
-		mrs, err := h.gitlab.GetEmployeeMRDetails(emp.Employee)
+		mrs, err := h.gitlab.GetEmployeeMRDetailsSince(emp.Employee, monthStart)
 		if err != nil {
 			mrs = []models.MergeRequest{}
 		}
 
-		conclusion := generateMRConclusion(emp.Employee.Name, mrs, emp.GitLab)
+		metrics := countMRMetrics(mrs)
+		conclusion := generateMRConclusion(emp.Employee.Name, mrs, metrics)
 
 		result = append(result, models.MRDetailResponse{
 			Employee:   emp.Employee.Name,
 			MRs:        mrs,
-			Metrics:    emp.GitLab,
+			Metrics:    metrics,
 			Conclusion: conclusion,
 		})
 	}
@@ -288,25 +303,27 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
-
 	if data == nil {
 		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
 		return
 	}
 
+	monthStart, _ := getMonthRange(r)
+
 	var result []models.ConfluenceDetailResponse
 	for _, emp := range data.Employees {
-		pages, err := h.confluence.GetEmployeePageDetails(emp.Employee)
+		pages, err := h.confluence.GetEmployeePageDetailsSince(emp.Employee, monthStart)
 		if err != nil {
 			pages = []models.ConfluencePage{}
 		}
 
-		conclusion := generateConfluenceConclusion(emp.Employee.Name, pages, emp.Confluence)
+		metrics := emp.Confluence
+		conclusion := generateConfluenceConclusion(emp.Employee.Name, pages, metrics)
 
 		result = append(result, models.ConfluenceDetailResponse{
 			Employee:   emp.Employee.Name,
 			Pages:      pages,
-			Metrics:    emp.Confluence,
+			Metrics:    metrics,
 			Conclusion: conclusion,
 		})
 	}
@@ -316,10 +333,62 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+// === Conclusion generators ===
+
+func generateTasksConclusion(name string, issues []models.JiraIssue, metrics models.TaskMetrics) string {
+	var issues2 []string
+	now := time.Now()
+
+	// Count stale
+	staleCount := 0
+	noDescription := 0
+	for _, issue := range issues {
+		days := int(now.Sub(issue.StatusSince).Hours() / 24)
+		if days >= 5 {
+			staleCount++
+		}
+		if issue.Summary == "" {
+			noDescription++
+		}
+	}
+
+	if staleCount > 0 {
+		issues2 = append(issues2, fmt.Sprintf("%d задач зависли (>5 дней в одном статусе)", staleCount))
+	}
+
+	if noDescription > 0 {
+		issues2 = append(issues2, fmt.Sprintf("%d задач без описания — необходимо заполнить", noDescription))
+	}
+
+	if metrics.ActiveTasks > 10 {
+		issues2 = append(issues2, fmt.Sprintf("Много активных задач (%d) — возможна перегрузка", metrics.ActiveTasks))
+	}
+
+	if metrics.CompletedMonth == 0 && metrics.ActiveTasks > 0 {
+		issues2 = append(issues2, "Нет завершённых задач за месяц при наличии активных")
+	}
+
+	if metrics.AvgCycleTimeDays > 10 {
+		issues2 = append(issues2, fmt.Sprintf("Высокий cycle time: %.1f дней в среднем", metrics.AvgCycleTimeDays))
+	}
+
+	if len(issues2) == 0 {
+		return "Задачи обрабатываются в нормальном режиме. Замечаний нет."
+	}
+
+	result := "Рекомендации: "
+	for i, issue := range issues2 {
+		if i > 0 {
+			result += "; "
+		}
+		result += issue
+	}
+	return result
+}
+
 func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models.GitLabMetrics) string {
 	var issues []string
 
-	// Check for long-open MRs
 	longOpen := 0
 	for _, mr := range mrs {
 		if mr.State == "opened" && mr.DaysOpen > 3 {
@@ -330,7 +399,6 @@ func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models
 		issues = append(issues, fmt.Sprintf("%d MR открыты более 3 дней — требуют внимания", longOpen))
 	}
 
-	// Check for failed pipelines
 	failedPipelines := 0
 	for _, mr := range mrs {
 		if mr.PipelineStatus == "failed" {
@@ -338,15 +406,13 @@ func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models
 		}
 	}
 	if failedPipelines > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR с упавшим pipeline — необходимо исправить", failedPipelines))
+		issues = append(issues, fmt.Sprintf("%d MR с упавшим pipeline", failedPipelines))
 	}
 
-	// Check MRs without review
 	if metrics.MRsWithoutReview > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR без назначенного ревьюера", metrics.MRsWithoutReview))
+		issues = append(issues, fmt.Sprintf("%d MR без ревьюера", metrics.MRsWithoutReview))
 	}
 
-	// Check conflicts
 	conflicts := 0
 	for _, mr := range mrs {
 		if mr.HasConflicts {
@@ -354,12 +420,11 @@ func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models
 		}
 	}
 	if conflicts > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR с конфликтами — нужен rebase", conflicts))
+		issues = append(issues, fmt.Sprintf("%d MR с конфликтами", conflicts))
 	}
 
-	// No activity
-	if metrics.MRsCreatedMonth == 0 && len(mrs) == 0 {
-		issues = append(issues, "Нет активности по MR за текущий месяц")
+	if len(mrs) == 0 {
+		issues = append(issues, "Нет MR за выбранный период")
 	}
 
 	if len(issues) == 0 {
@@ -379,23 +444,20 @@ func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models
 func generateConfluenceConclusion(name string, pages []models.ConfluencePage, metrics models.ConfluenceMetrics) string {
 	var issues []string
 
-	// No activity
-	if metrics.PagesCreatedMonth == 0 && metrics.PagesUpdatedMonth == 0 {
-		issues = append(issues, "Нет активности в Confluence за текущий месяц — документация не ведётся")
+	if len(pages) == 0 {
+		issues = append(issues, "Нет активности в Confluence за выбранный период")
 	}
 
-	// Short pages (poor quality)
 	shortPages := 0
 	for _, p := range pages {
-		if p.BodyLength < 500 && p.BodyLength > 0 {
+		if p.BodyLength > 0 && p.BodyLength < 500 {
 			shortPages++
 		}
 	}
 	if shortPages > 0 {
-		issues = append(issues, fmt.Sprintf("%d страниц с минимальным содержимым (<500 символов) — возможно неполная документация", shortPages))
+		issues = append(issues, fmt.Sprintf("%d страниц с минимальным содержимым (<500 символов)", shortPages))
 	}
 
-	// Stale pages
 	stalePages := 0
 	for _, p := range pages {
 		if p.DaysSinceUpdate > 30 {
@@ -403,12 +465,11 @@ func generateConfluenceConclusion(name string, pages []models.ConfluencePage, me
 		}
 	}
 	if stalePages > 0 {
-		issues = append(issues, fmt.Sprintf("%d страниц не обновлялись более 30 дней", stalePages))
+		issues = append(issues, fmt.Sprintf("%d страниц не обновлялись >30 дней", stalePages))
 	}
 
-	// Low quality score
 	if metrics.QualityScore < 50 {
-		issues = append(issues, "Низкий общий показатель качества документации")
+		issues = append(issues, "Низкий показатель качества документации")
 	}
 
 	if len(issues) == 0 {
@@ -424,3 +485,23 @@ func generateConfluenceConclusion(name string, pages []models.ConfluencePage, me
 	}
 	return result
 }
+
+func countMRMetrics(mrs []models.MergeRequest) models.GitLabMetrics {
+	var m models.GitLabMetrics
+	m.MRsCreatedMonth = len(mrs)
+	for _, mr := range mrs {
+		if mr.State == "merged" {
+			m.MRsMergedMonth++
+		}
+		if mr.State == "opened" {
+			m.MRsOpen++
+			if len(mr.Reviewers) == 0 {
+				m.MRsWithoutReview++
+			}
+		}
+	}
+	return m
+}
+
+// helper for unused import
+var _ = strconv.Itoa

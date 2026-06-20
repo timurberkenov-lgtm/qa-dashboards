@@ -126,6 +126,9 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Chart -->
+                <section id="chartSection"></section>
             </div>
 
             <!-- Page: Tasks -->
@@ -134,7 +137,9 @@
                     <h1>Задачи Jira</h1>
                     <span class="page-subtitle">Детали по задачам сотрудников</span>
                 </div>
+                <div class="conclusion-banner" id="tasksConclusion" style="display:none;"></div>
                 <div class="filters-bar">
+                    <select class="filter-select" id="tasksMonthFilter"></select>
                     <select class="filter-select" id="tasksFilterEmployee" onchange="filterTasks()">
                         <option value="all">Все сотрудники</option>
                     </select>
@@ -173,6 +178,7 @@
                 </div>
                 <div class="conclusion-banner" id="mrConclusion" style="display:none;"></div>
                 <div class="filters-bar">
+                    <select class="filter-select" id="mrMonthFilter"></select>
                     <select class="filter-select" id="mrFilterEmployee" onchange="filterMRs()">
                         <option value="all">Все сотрудники</option>
                     </select>
@@ -218,6 +224,7 @@
                 </div>
                 <div class="conclusion-banner" id="confConclusion" style="display:none;"></div>
                 <div class="filters-bar">
+                    <select class="filter-select" id="confMonthFilter"></select>
                     <select class="filter-select" id="confFilterEmployee" onchange="filterConfluence()">
                         <option value="all">Все сотрудники</option>
                     </select>

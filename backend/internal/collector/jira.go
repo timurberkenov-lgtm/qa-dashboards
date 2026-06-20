@@ -79,6 +79,25 @@ func (j *JiraCollector) GetAnalysisTasks(employee models.Employee) ([]models.Jir
 	return j.searchIssues(jql)
 }
 
+// GetEmployeeTasksSince returns all tasks (active + resolved) for an employee since a date
+func (j *JiraCollector) GetEmployeeTasksSince(employee models.Employee, since time.Time) ([]models.JiraIssue, error) {
+	sinceStr := since.Format("2006-01-02")
+	var jql string
+	if len(employee.JiraProjects) == 0 {
+		jql = fmt.Sprintf(`assignee = "%s" AND (updated >= "%s" OR created >= "%s") ORDER BY updated DESC`, employee.Email, sinceStr, sinceStr)
+	} else {
+		projects := ""
+		for i, p := range employee.JiraProjects {
+			if i > 0 {
+				projects += ", "
+			}
+			projects += p
+		}
+		jql = fmt.Sprintf(`project IN (%s) AND assignee = "%s" AND (updated >= "%s" OR created >= "%s") ORDER BY updated DESC`, projects, employee.Email, sinceStr, sinceStr)
+	}
+	return j.searchIssues(jql)
+}
+
 func (j *JiraCollector) searchIssues(jql string) ([]models.JiraIssue, error) {
 	endpoint := fmt.Sprintf("%s/rest/api/2/search?jql=%s&maxResults=100&fields=key,summary,status,issuetype,assignee,created,updated,project",
 		j.cfg.Jira.URL, url.QueryEscape(jql))

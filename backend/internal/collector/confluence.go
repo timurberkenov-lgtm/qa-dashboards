@@ -79,19 +79,18 @@ func (c *ConfluenceCollector) GetEmployeeMetrics(employee models.Employee) (mode
 	return metrics, nil
 }
 
-// GetEmployeePageDetails returns detailed page info for an employee
+// GetEmployeePageDetails returns detailed page info for an employee (current month)
 func (c *ConfluenceCollector) GetEmployeePageDetails(employee models.Employee) ([]models.ConfluencePage, error) {
 	username := extractConfUsername(employee.Email)
-
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	return c.searchPagesDetailed(username, monthStart)
+}
 
-	pages, err := c.searchPagesDetailed(username, monthStart)
-	if err != nil {
-		return nil, err
-	}
-
-	return pages, nil
+// GetEmployeePageDetailsSince returns pages since a specific date
+func (c *ConfluenceCollector) GetEmployeePageDetailsSince(employee models.Employee, since time.Time) ([]models.ConfluencePage, error) {
+	username := extractConfUsername(employee.Email)
+	return c.searchPagesDetailed(username, since)
 }
 
 func (c *ConfluenceCollector) searchPagesDetailed(username string, since time.Time) ([]models.ConfluencePage, error) {

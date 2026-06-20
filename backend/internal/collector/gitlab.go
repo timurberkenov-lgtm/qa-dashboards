@@ -75,8 +75,14 @@ func (g *GitLabCollector) GetEmployeeMetrics(employee models.Employee) (models.G
 func (g *GitLabCollector) GetEmployeeMRDetails(employee models.Employee) ([]models.MergeRequest, error) {
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	return g.GetEmployeeMRDetailsSince(employee, monthStart)
+}
 
-	mrs, err := g.getUserMRs(employee.Email, monthStart)
+// GetEmployeeMRDetailsSince returns MRs since a specific date
+func (g *GitLabCollector) GetEmployeeMRDetailsSince(employee models.Employee, since time.Time) ([]models.MergeRequest, error) {
+	now := time.Now()
+
+	mrs, err := g.getUserMRs(employee.Email, since)
 	if err != nil {
 		return nil, err
 	}
