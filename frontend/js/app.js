@@ -57,60 +57,62 @@ async function fetchDashboard() {
 }
 
 function renderDashboard(data) {
+    // Summary - linked to filter
     document.getElementById('totalActive').textContent = data.summary.total_active_tasks;
-    document.getElementById('totalCompletedToday').textContent = data.summary.total_completed_today;
-    document.getElementById('totalCompletedMonth').textContent = data.summary.total_completed_month;
+    document.getElementById('totalCompleted').textContent = data.summary.total_completed_month;
     document.getElementById('totalMRs').textContent = data.summary.total_mrs_month;
-    document.getElementById('totalPages').textContent = data.summary.total_pages_month;
     document.getElementById('totalAlerts').textContent = data.summary.total_alerts;
-    const navTB = document.getElementById('navTasksBadge');
-    if (navTB) navTB.textContent = data.summary.total_active_tasks || '';
-    const navMR = document.getElementById('navMRBadge');
-    if (navMR) navMR.textContent = data.summary.total_mrs_month || '';
+
+    renderGauges(data.employees, data.summary);
     renderAlerts(data.alerts);
-    renderGauges(data.employees);
     renderEmployees(data.employees);
     renderDashboardConclusion(data);
+
     const dt = new Date(data.last_updated);
     document.getElementById('lastUpdated').textContent = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-function renderGauges(employees) {
+function renderGauges(employees, summary) {
     const container = document.getElementById('gaugesSection');
     if (!container) return;
-    // Calculate aggregate metrics
-    let totalActive = 0, totalCompleted = 0, totalStale = 0, totalMR = 0, totalConf = 0;
-    employees.forEach(e => { totalActive += e.tasks.active_tasks; totalCompleted += e.tasks.completed_month; totalStale += e.tasks.stale_tasks; totalMR += e.gitlab.mrs_created_month; totalConf += e.confluence.pages_created_month + e.confluence.pages_updated_month; });
-    const completionRate = totalActive + totalCompleted > 0 ? Math.round(totalCompleted / (totalActive + totalCompleted) * 100) : 0;
-    const healthRate = totalActive > 0 ? Math.max(0, 100 - Math.round(totalStale / totalActive * 100)) : 100;
-    
-    container.innerHTML = `
-        <div class="gauges-grid">
-            ${createGauge('Исполнение', completionRate, 'green', `${totalCompleted} из ${totalActive+totalCompleted} задач завершено`)}
-            ${createGauge('Здоровье', healthRate, healthRate > 70 ? 'green' : healthRate > 40 ? 'orange' : 'red', `${totalStale} задач зависли >5 дней`)}
-            ${createGauge('MR активность', Math.min(100, totalMR * 10), 'blue', `${totalMR} merge requests за период`)}
-            ${createGauge('Документация', Math.min(100, totalConf * 5), 'purple', `${totalConf} страниц создано/обновлено`)}
-        </div>
-    `;
+
+    let totalActive = 0, totalCompleted = 0, totalStale = 0, totalMR = 0, totalMRMerged = 0;
+    employees.forEach(e => {
+        totalActive += e.tasks.active_tasks;
+        totalCompleted += e.tasks.completed_month;
+        totalStale += e.tasks.stale_tasks;
+        totalMR += e.gitlab.mrs_created_month;
+        totalMRMerged += e.gitlab.mrs_merged_month;
+    });
+
+    const total = totalActive + totalCompleted;
+    const completionRate = total > 0 ? Math.round(totalCompleted / total * 100) : 0;
+    const noStaleRate = totalActive > 0 ? Math.max(0, 100 - Math.round(totalStale / totalActive * 100)) : 100;
+    const mrMergeRate = totalMR > 0 ? Math.round(totalMRMerged / totalMR * 100) : 0;
+
+    container.innerHTML = `<div class="gauges-grid">
+        ${createGauge('Исполнение', completionRate, 'green', `${totalCompleted} из ${total} задач завершено`)}
+        ${createGauge('Без зависаний', noStaleRate, noStaleRate > 70 ? 'green' : noStaleRate > 40 ? 'orange' : 'red', `${totalStale} задач стоят >5 дней`)}
+        ${createGauge('MR Merged', mrMergeRate, 'blue', `${totalMRMerged} из ${totalMR} MR влиты`)}
+        ${createGauge('Загрузка', Math.min(100, Math.round(totalActive / Math.max(employees.length, 1) * 10)), 'purple', `~${Math.round(totalActive / Math.max(employees.length, 1))} задач на человека`)}
+    </div>`;
 }
 
 function createGauge(label, value, color, detail) {
     const circumference = 2 * Math.PI * 54;
     const offset = circumference - (value / 100) * circumference;
     const colorVar = `var(--accent-${color})`;
-    return `
-        <div class="gauge-item">
-            <svg class="gauge-svg" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="54" fill="none" stroke="var(--bg-primary)" stroke-width="10"/>
-                <circle cx="60" cy="60" r="54" fill="none" stroke="${colorVar}" stroke-width="10" stroke-linecap="round"
-                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
-                    transform="rotate(-90 60 60)" style="transition: stroke-dashoffset 1s ease"/>
-                <text x="60" y="56" text-anchor="middle" fill="var(--text-primary)" font-size="22" font-weight="700">${value}%</text>
-                <text x="60" y="74" text-anchor="middle" fill="var(--text-secondary)" font-size="10">${label}</text>
-            </svg>
-            <div class="gauge-detail">${detail}</div>
-        </div>
-    `;
+    return `<div class="gauge-item">
+        <svg class="gauge-svg" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" fill="none" stroke="var(--bg-primary)" stroke-width="10"/>
+            <circle cx="60" cy="60" r="54" fill="none" stroke="${colorVar}" stroke-width="10" stroke-linecap="round"
+                stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+                transform="rotate(-90 60 60)" style="transition:stroke-dashoffset 1s ease"/>
+            <text x="60" y="56" text-anchor="middle" fill="var(--text-primary)" font-size="22" font-weight="700">${value}%</text>
+            <text x="60" y="74" text-anchor="middle" fill="var(--text-secondary)" font-size="10">${label}</text>
+        </svg>
+        <div class="gauge-detail">${detail}</div>
+    </div>`;
 }
 
 function renderDashboardConclusion(data) {
@@ -118,16 +120,18 @@ function renderDashboardConclusion(data) {
     if (!el) return;
     const issues = [];
     let totalStale = 0, totalNoActivity = 0;
-    data.employees.forEach(e => { totalStale += e.tasks.stale_tasks; if (e.gitlab.mrs_created_month === 0 && e.employee.gitlab_groups?.length > 0) totalNoActivity++; });
-    if (totalStale > 0) issues.push(`${totalStale} задач зависли (>5 дней в одном статусе) — провести разбор с исполнителями`);
-    if (totalNoActivity > 0) issues.push(`${totalNoActivity} сотрудников без активности в GitLab — уточнить загрузку`);
-    if (data.summary.critical_alerts > 0) issues.push(`${data.summary.critical_alerts} критических алертов требуют немедленного внимания`);
-    if (data.summary.total_completed_month === 0) issues.push('Нет завершённых задач за период — проверить блокеры');
+    data.employees.forEach(e => {
+        totalStale += e.tasks.stale_tasks;
+        if (e.gitlab.mrs_created_month === 0 && e.employee.gitlab_groups && e.employee.gitlab_groups.length > 0) totalNoActivity++;
+    });
+    if (totalStale > 0) issues.push(`${totalStale} задач зависли (>5 дней в одном статусе) — провести разбор`);
+    if (totalNoActivity > 0) issues.push(`${totalNoActivity} сотрудников без активности в GitLab`);
+    if (data.summary.critical_alerts > 0) issues.push(`${data.summary.critical_alerts} критических алертов`);
 
     el.style.display = 'block';
     if (issues.length === 0) {
         el.className = 'conclusion-banner';
-        el.innerHTML = `<div class="conclusion-title"><i class="fas fa-check-circle"></i> Общее заключение</div><div class="conclusion-items"><div class="conclusion-item"><span class="issue-text" style="color:var(--accent-green)">Команда работает в нормальном режиме. Критичных замечаний нет.</span></div></div>`;
+        el.innerHTML = `<div class="conclusion-title"><i class="fas fa-check-circle"></i> Общее заключение</div><div class="conclusion-items"><div class="conclusion-item"><span class="issue-text" style="color:var(--accent-green)">Команда работает в нормальном режиме. Замечаний нет.</span></div></div>`;
     } else {
         el.className = 'conclusion-banner has-issues';
         el.innerHTML = `<div class="conclusion-title"><i class="fas fa-exclamation-circle"></i> Общее заключение и рекомендации</div><div class="conclusion-items">${issues.map(i => `<div class="conclusion-item"><span class="issue-text">${i}</span></div>`).join('')}</div>`;
@@ -145,14 +149,27 @@ function renderAlerts(alerts) {
 function renderEmployees(employees) {
     const grid = document.getElementById('employeesGrid');
     if (!employees || employees.length === 0) { grid.innerHTML = '<div class="loading-state"><p>Нет данных</p></div>'; return; }
-    grid.innerHTML = employees.map(emp => createEmployeeCard(emp)).join('');
-}
-
-function createEmployeeCard(emp) {
-    const initials = getInitials(emp.employee.name);
-    const hasAlerts = emp.alerts && emp.alerts.length > 0;
-    const confScore = emp.confluence.quality_score || 0;
-    return `<div class="employee-card ${hasAlerts?'has-alerts':''}"><div class="employee-header"><div class="employee-info"><div class="employee-avatar">${initials}</div><div><div class="employee-name">${emp.employee.name}</div><div class="employee-role">${emp.employee.role}</div></div></div>${hasAlerts?`<span class="employee-alerts-badge"><i class="fas fa-exclamation-triangle"></i> ${emp.alerts.length}</span>`:''}</div><div class="metrics-grid"><div class="metric-item"><div class="metric-value">${emp.tasks.active_tasks}</div><div class="metric-label">Активные</div></div><div class="metric-item"><div class="metric-value">${emp.tasks.completed_month}</div><div class="metric-label">Завершены</div></div><div class="metric-item"><div class="metric-value">${emp.gitlab.mrs_created_month}</div><div class="metric-label">MR</div></div><div class="metric-item"><div class="metric-value">${emp.confluence.pages_created_month+emp.confluence.pages_updated_month}</div><div class="metric-label">Confluence</div></div><div class="metric-item"><div class="metric-value" style="color:${emp.tasks.stale_tasks>0?'var(--accent-red)':'var(--accent-green)'}">${emp.tasks.stale_tasks}</div><div class="metric-label">Зависшие</div></div><div class="metric-item"><div class="metric-value">${emp.tasks.total_tasks}</div><div class="metric-label">Всего</div></div></div></div>`;
+    grid.innerHTML = employees.map(emp => {
+        const initials = getInitials(emp.employee.name);
+        const hasAlerts = emp.alerts && emp.alerts.length > 0;
+        const totalTasks = emp.tasks.total_tasks;
+        const loadLevel = totalTasks > 15 ? 'Высокая' : totalTasks > 8 ? 'Средняя' : 'Низкая';
+        const loadColor = totalTasks > 15 ? 'var(--accent-red)' : totalTasks > 8 ? 'var(--accent-orange)' : 'var(--accent-green)';
+        return `<div class="employee-card ${hasAlerts?'has-alerts':''}">
+            <div class="employee-header">
+                <div class="employee-info"><div class="employee-avatar">${initials}</div><div><div class="employee-name">${emp.employee.name}</div><div class="employee-role">${emp.employee.role}</div></div></div>
+                ${hasAlerts?`<span class="employee-alerts-badge"><i class="fas fa-exclamation-triangle"></i> ${emp.alerts.length}</span>`:''}
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item"><div class="metric-value">${emp.tasks.active_tasks}</div><div class="metric-label">Активные</div></div>
+                <div class="metric-item"><div class="metric-value">${emp.tasks.completed_month}</div><div class="metric-label">Выполнено</div></div>
+                <div class="metric-item"><div class="metric-value">${emp.tasks.total_tasks}</div><div class="metric-label">Всего задач</div></div>
+                <div class="metric-item"><div class="metric-value">${emp.gitlab.mrs_merged_month}</div><div class="metric-label">MR Merged</div></div>
+                <div class="metric-item"><div class="metric-value" style="color:${emp.tasks.stale_tasks>0?'var(--accent-red)':'var(--accent-green)'}">${emp.tasks.stale_tasks}</div><div class="metric-label">Зависшие</div></div>
+                <div class="metric-item"><div class="metric-value" style="color:${loadColor};font-size:14px">${loadLevel}</div><div class="metric-label">Загрузка</div></div>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // === TASKS ===
@@ -234,7 +251,7 @@ function filterConfluence(){if(!confData)return;let all=[];confData.forEach(d=>{
 function renderConfTable(pages){const tb=document.getElementById('confTableBody');if(!pages||!pages.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных</td></tr>';return;}
 pages.sort((a,b)=>new Date(b.last_updated)-new Date(a.last_updated));
 tb.innerHTML=pages.map(p=>{const dt=p.last_updated?new Date(p.last_updated).toLocaleDateString('ru-RU'):'-';
-return`<tr><td><a href="${p.url}" target="_blank" class="task-key" style="max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</a></td><td style="font-size:12px">${p.employee}</td><td><span style="font-size:11px;background:var(--bg-secondary);padding:2px 6px;border-radius:4px">${p.space}</span></td><td style="text-align:center">v${p.version||1}</td><td>${dt}</td><td style="font-size:12px;color:var(--text-secondary);max-width:220px">${p.changes||'-'}</td></tr>`;}).join('');}
+return`<tr><td><a href="${p.url}" target="_blank" class="task-key" style="max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</a></td><td style="font-size:12px">${p.employee}</td><td><span style="font-size:11px;background:var(--bg-secondary);padding:2px 6px;border-radius:4px">${p.space}</span></td><td style="text-align:center">v${p.version||1}</td><td>${dt}</td><td style="font-size:12px;color:var(--text-secondary);max-width:240px">${p.changes||'-'}</td></tr>`;}).join('');}
 function renderConfConclusion(data){const el=document.getElementById('confConclusion');if(!el)return;const items=data.filter(d=>d.conclusion&&!d.conclusion.startsWith('Документация ведётся'));
 if(!items.length){el.style.display='block';el.className='conclusion-banner';el.innerHTML=`<div class="conclusion-title"><i class="fas fa-check-circle"></i> Заключение</div><div class="conclusion-items"><div class="conclusion-item"><span class="issue-text" style="color:var(--accent-green)">Документация ведётся активно.</span></div></div>`;return;}
 el.style.display='block';el.className='conclusion-banner has-issues';el.innerHTML=`<div class="conclusion-title"><i class="fas fa-exclamation-circle"></i> Заключение</div><div class="conclusion-items">${data.map(d=>d.conclusion&&!d.conclusion.startsWith('Документация ведётся')?`<div class="conclusion-item"><span class="emp-name">${d.employee}</span><span class="issue-text">${d.conclusion.replace('Обратить внимание: ','')}</span></div>`:'').filter(Boolean).join('')}</div>`;}
@@ -242,6 +259,5 @@ el.style.display='block';el.className='conclusion-banner has-issues';el.innerHTM
 // === HELPERS ===
 function getInitials(n){const p=n.split(' ');return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():n.substring(0,2).toUpperCase();}
 function getDays(d){if(!d)return 0;return Math.floor((new Date()-new Date(d))/(86400000));}
-function renderStatusTags(s){if(!s||!Object.keys(s).length)return'';return`<div class="status-tags">${Object.entries(s).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`<span class="status-tag">${k}<span class="count">${v}</span></span>`).join('')}</div>`;}
 function updateConnectionStatus(c){const el=document.getElementById('connectionStatus');if(c){el.innerHTML='<span class="status-dot"></span><span>Live</span>';el.style.color='var(--accent-green)';}else{el.innerHTML='<span class="status-dot" style="background:var(--accent-red)"></span><span>Offline</span>';el.style.color='var(--accent-red)';}}
 function toggleAlerts(){const l=document.getElementById('alertsList'),i=document.getElementById('alertsToggleIcon');if(l.style.display==='none'){l.style.display='flex';i.className='fas fa-chevron-down';}else{l.style.display='none';i.className='fas fa-chevron-right';}}

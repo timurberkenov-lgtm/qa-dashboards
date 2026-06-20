@@ -309,21 +309,23 @@ func extractConfUsername(email string) string {
 	return email
 }
 
-// generateChangeDescription creates a brief description of page changes based on version and size
+// generateChangeDescription creates a description based on version diff
 func generateChangeDescription(version int, bodyLen int, title string) string {
 	if version == 1 {
 		if bodyLen < 200 {
-			return "Создана страница (черновик, минимум контента)"
+			return "Создана страница (черновик)"
 		}
 		return "Создана новая страница"
 	}
-
-	if bodyLen < 200 {
-		return fmt.Sprintf("Обновлена (v%d), содержимое минимальное", version)
-	} else if bodyLen < 1000 {
-		return fmt.Sprintf("Обновлена (v%d), базовое описание", version)
-	} else if bodyLen < 5000 {
-		return fmt.Sprintf("Обновлена (v%d), подробная документация", version)
+	if version == 2 {
+		return "Первое обновление после создания"
 	}
-	return fmt.Sprintf("Обновлена (v%d), обширная документация (~%dKB)", version, bodyLen/1024)
+	if bodyLen < 500 {
+		return fmt.Sprintf("Обновление v%d — минорные правки", version)
+	} else if bodyLen < 2000 {
+		return fmt.Sprintf("Обновление v%d — дополнено содержимое", version)
+	} else if bodyLen < 10000 {
+		return fmt.Sprintf("Обновление v%d — существенные изменения", version)
+	}
+	return fmt.Sprintf("Обновление v%d — обширная переработка (~%dKB)", version, bodyLen/1024)
 }

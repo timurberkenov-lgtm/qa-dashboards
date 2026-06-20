@@ -26,12 +26,10 @@
                 <a href="#" class="nav-item" data-page="tasks" onclick="navigateTo('tasks')">
                     <i class="fas fa-tasks"></i>
                     <span>Задачи Jira</span>
-                    <span class="nav-badge" id="navTasksBadge"></span>
                 </a>
                 <a href="#" class="nav-item" data-page="merge-requests" onclick="navigateTo('merge-requests')">
                     <i class="fas fa-code-branch"></i>
                     <span>Merge Requests</span>
-                    <span class="nav-badge" id="navMRBadge"></span>
                 </a>
                 <a href="#" class="nav-item" data-page="confluence" onclick="navigateTo('confluence')">
                     <i class="fas fa-file-alt"></i>
@@ -78,29 +76,15 @@
                     <div class="summary-card">
                         <div class="summary-icon green"><i class="fas fa-check-circle"></i></div>
                         <div class="summary-content">
-                            <span class="summary-value" id="totalCompletedToday">-</span>
-                            <span class="summary-label">Выполнено сегодня</span>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon purple"><i class="fas fa-calendar-check"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalCompletedMonth">-</span>
-                            <span class="summary-label">Выполнено за месяц</span>
+                            <span class="summary-value" id="totalCompleted">-</span>
+                            <span class="summary-label">Выполнено</span>
                         </div>
                     </div>
                     <div class="summary-card">
                         <div class="summary-icon orange"><i class="fas fa-code-branch"></i></div>
                         <div class="summary-content">
                             <span class="summary-value" id="totalMRs">-</span>
-                            <span class="summary-label">MR за месяц</span>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon teal"><i class="fas fa-file-alt"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalPages">-</span>
-                            <span class="summary-label">Страниц Confluence</span>
+                            <span class="summary-label">Merge Requests</span>
                         </div>
                     </div>
                     <div class="summary-card" id="alertsSummaryCard">
