@@ -30,33 +30,36 @@ func NewConfluenceCollector(cfg *config.Config) *ConfluenceCollector {
 func (c *ConfluenceCollector) GetEmployeeMetrics(employee models.Employee) (models.ConfluenceMetrics, error) {
 	var metrics models.ConfluenceMetrics
 
+	// Confluence Server/DC uses username (without domain), not email
+	username := extractConfUsername(employee.Email)
+
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	// Pages created this month
-	createdMonth, err := c.searchPages(employee.Email, "created", monthStart)
+	createdMonth, err := c.searchPages(username, "created", monthStart)
 	if err != nil {
 		return metrics, err
 	}
 	metrics.PagesCreatedMonth = len(createdMonth)
 
 	// Pages created today
-	createdToday, err := c.searchPages(employee.Email, "created", todayStart)
+	createdToday, err := c.searchPages(username, "created", todayStart)
 	if err != nil {
 		return metrics, err
 	}
 	metrics.PagesCreatedToday = len(createdToday)
 
 	// Pages updated this month (contributor)
-	updatedMonth, err := c.searchContributed(employee.Email, monthStart)
+	updatedMonth, err := c.searchContributed(username, monthStart)
 	if err != nil {
 		return metrics, err
 	}
 	metrics.PagesUpdatedMonth = len(updatedMonth)
 
 	// Total pages by this user
-	total, err := c.getTotalPages(employee.Email)
+	total, err := c.getTotalPages(username)
 	if err != nil {
 		return metrics, err
 	}
@@ -78,10 +81,12 @@ func (c *ConfluenceCollector) GetEmployeeMetrics(employee models.Employee) (mode
 
 // GetEmployeePageDetails returns detailed page info for an employee
 func (c *ConfluenceCollector) GetEmployeePageDetails(employee models.Employee) ([]models.ConfluencePage, error) {
+	username := extractConfUsername(employee.Email)
+
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 
-	pages, err := c.searchPagesDetailed(employee.Email, monthStart)
+	pages, err := c.searchPagesDetailed(username, monthStart)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +94,9 @@ func (c *ConfluenceCollector) GetEmployeePageDetails(employee models.Employee) (
 	return pages, nil
 }
 
-func (c *ConfluenceCollector) searchPagesDetailed(email string, since time.Time) ([]models.ConfluencePage, error) {
+func (c *ConfluenceCollector) searchPagesDetailed(username string, since time.Time) ([]models.ConfluencePage, error) {
 	sinceStr := since.Format("2006-01-02")
-	cql := fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND type = page`, email, email, sinceStr)
+	cql := fmt.Sprintf(`(creator = "%s" OR contributor = "%s") AND lastModified >= "%s" AND type = page`, username, username, sinceStr)
 
 	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=50&expand=version,space,body.storage",
 		c.cfg.Confluence.URL, url.QueryEscape(cql))
@@ -156,9 +161,9 @@ func (c *ConfluenceCollector) searchPagesDetailed(email string, since time.Time)
 	return pages, nil
 }
 
-func (c *ConfluenceCollector) searchPages(email, dateField string, since time.Time) ([]string, error) {
+func (c *ConfluenceCollector) searchPages(username, dateField string, since time.Time) ([]string, error) {
 	sinceStr := since.Format("2006-01-02")
-	cql := fmt.Sprintf(`creator = "%s" AND %s >= "%s" AND type = page`, email, dateField, sinceStr)
+	cql := fmt.Sprintf(`creator = "%s" AND %s >= "%s" AND type = page`, username, dateField, sinceStr)
 
 	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=100",
 		c.cfg.Confluence.URL, url.QueryEscape(cql))
@@ -192,9 +197,9 @@ func (c *ConfluenceCollector) searchPages(email, dateField string, since time.Ti
 	return ids, nil
 }
 
-func (c *ConfluenceCollector) searchContributed(email string, since time.Time) ([]string, error) {
+func (c *ConfluenceCollector) searchContributed(username string, since time.Time) ([]string, error) {
 	sinceStr := since.Format("2006-01-02")
-	cql := fmt.Sprintf(`contributor = "%s" AND lastModified >= "%s" AND type = page`, email, sinceStr)
+	cql := fmt.Sprintf(`contributor = "%s" AND lastModified >= "%s" AND type = page`, username, sinceStr)
 
 	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=100",
 		c.cfg.Confluence.URL, url.QueryEscape(cql))
@@ -228,8 +233,8 @@ func (c *ConfluenceCollector) searchContributed(email string, since time.Time) (
 	return ids, nil
 }
 
-func (c *ConfluenceCollector) getTotalPages(email string) (int, error) {
-	cql := fmt.Sprintf(`creator = "%s" AND type = page`, email)
+func (c *ConfluenceCollector) getTotalPages(username string) (int, error) {
+	cql := fmt.Sprintf(`creator = "%s" AND type = page`, username)
 	endpoint := fmt.Sprintf("%s/rest/api/content/search?cql=%s&limit=0",
 		c.cfg.Confluence.URL, url.QueryEscape(cql))
 
@@ -291,4 +296,15 @@ type confluenceDetailPage struct {
 			Value string `json:"value"`
 		} `json:"storage"`
 	} `json:"body"`
+}
+
+// extractConfUsername extracts username from email (e.g., "DAltybassarova" from "DAltybassarova@Fortebank.com")
+// Confluence Server/DC uses username, not email for CQL queries
+func extractConfUsername(email string) string {
+	for i, c := range email {
+		if c == '@' {
+			return email[:i]
+		}
+	}
+	return email
 }
