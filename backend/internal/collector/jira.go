@@ -79,12 +79,27 @@ func (j *JiraCollector) GetAnalysisTasks(employee models.Employee) ([]models.Jir
 	return j.searchIssues(jql)
 }
 
-// GetEmployeeTasksSince returns all tasks (active + resolved) for an employee since a date
+// GetEmployeeTasksSince returns all tasks (active + resolved) for an employee in a date range
 func (j *JiraCollector) GetEmployeeTasksSince(employee models.Employee, since time.Time) ([]models.JiraIssue, error) {
+	return j.GetEmployeeTasksRange(employee, since, time.Time{})
+}
+
+// GetEmployeeTasksRange returns tasks for a specific date range (since <= updated < until)
+func (j *JiraCollector) GetEmployeeTasksRange(employee models.Employee, since time.Time, until time.Time) ([]models.JiraIssue, error) {
 	sinceStr := since.Format("2006-01-02")
+
+	var dateFilter string
+	if until.IsZero() {
+		// No upper bound — from since to now
+		dateFilter = fmt.Sprintf(`(updated >= "%s" OR created >= "%s")`, sinceStr, sinceStr)
+	} else {
+		untilStr := until.Format("2006-01-02")
+		dateFilter = fmt.Sprintf(`((updated >= "%s" AND updated < "%s") OR (created >= "%s" AND created < "%s"))`, sinceStr, untilStr, sinceStr, untilStr)
+	}
+
 	var jql string
 	if len(employee.JiraProjects) == 0 {
-		jql = fmt.Sprintf(`assignee = "%s" AND (updated >= "%s" OR created >= "%s") ORDER BY updated DESC`, employee.Email, sinceStr, sinceStr)
+		jql = fmt.Sprintf(`assignee = "%s" AND %s ORDER BY updated DESC`, employee.Email, dateFilter)
 	} else {
 		projects := ""
 		for i, p := range employee.JiraProjects {
@@ -93,7 +108,7 @@ func (j *JiraCollector) GetEmployeeTasksSince(employee models.Employee, since ti
 			}
 			projects += p
 		}
-		jql = fmt.Sprintf(`project IN (%s) AND assignee = "%s" AND (updated >= "%s" OR created >= "%s") ORDER BY updated DESC`, projects, employee.Email, sinceStr, sinceStr)
+		jql = fmt.Sprintf(`project IN (%s) AND assignee = "%s" AND %s ORDER BY updated DESC`, projects, employee.Email, dateFilter)
 	}
 	return j.searchIssues(jql)
 }

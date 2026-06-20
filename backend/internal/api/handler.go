@@ -360,8 +360,8 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	h.mu.RUnlock()
 
-	// Parse month filter
-	monthStart, _ := getMonthRange(r)
+	// Parse month filter — get both start and end
+	monthStart, monthEnd := getMonthRange(r)
 
 	type TasksResponse struct {
 		Employee   string             `json:"employee"`
@@ -369,9 +369,15 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 		Conclusion string             `json:"conclusion"`
 	}
 
+	// Determine until: if "all" → no upper bound (zero time), otherwise use monthEnd
+	var until time.Time
+	if monthParam != "all" {
+		until = monthEnd
+	}
+
 	var result []TasksResponse
 	for _, emp := range data.Employees {
-		issues, err := h.jira.GetEmployeeTasksSince(emp.Employee, monthStart)
+		issues, err := h.jira.GetEmployeeTasksRange(emp.Employee, monthStart, until)
 		if err != nil {
 			issues = []models.JiraIssue{}
 		}
