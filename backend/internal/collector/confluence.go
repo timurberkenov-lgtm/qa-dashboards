@@ -154,6 +154,7 @@ func (c *ConfluenceCollector) searchPagesDetailed(username string, since time.Ti
 			Version:         r.Version.Number,
 			BodyLength:      bodyLen,
 			DaysSinceUpdate: daysOld,
+			Changes:         generateChangeDescription(r.Version.Number, bodyLen, r.Title),
 		})
 	}
 
@@ -306,4 +307,23 @@ func extractConfUsername(email string) string {
 		}
 	}
 	return email
+}
+
+// generateChangeDescription creates a brief description of page changes based on version and size
+func generateChangeDescription(version int, bodyLen int, title string) string {
+	if version == 1 {
+		if bodyLen < 200 {
+			return "Создана страница (черновик, минимум контента)"
+		}
+		return "Создана новая страница"
+	}
+
+	if bodyLen < 200 {
+		return fmt.Sprintf("Обновлена (v%d), содержимое минимальное", version)
+	} else if bodyLen < 1000 {
+		return fmt.Sprintf("Обновлена (v%d), базовое описание", version)
+	} else if bodyLen < 5000 {
+		return fmt.Sprintf("Обновлена (v%d), подробная документация", version)
+	}
+	return fmt.Sprintf("Обновлена (v%d), обширная документация (~%dKB)", version, bodyLen/1024)
 }

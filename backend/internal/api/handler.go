@@ -53,13 +53,17 @@ func (h *Handler) startPolling() {
 	}
 }
 
-// getMonthRange parses ?month=2026-03 or defaults to current month
+// getMonthRange parses ?month=2026-03, ?month=all, or defaults to current month
 func getMonthRange(r *http.Request) (time.Time, time.Time) {
 	monthParam := r.URL.Query().Get("month")
 	now := time.Now()
 
+	if monthParam == "all" {
+		// All time since project start
+		return dataStartDate, now
+	}
+
 	if monthParam != "" {
-		// Parse YYYY-MM
 		t, err := time.Parse("2006-01", monthParam)
 		if err == nil {
 			start := t
@@ -193,6 +197,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	// If month filter specified, recalculate on the fly
+	monthParam := r.URL.Query().Get("month")
+	if monthParam != "" {
+		h.handleDashboardFiltered(w, r, monthParam)
+		return
+	}
+
 	h.mu.RLock()
 	data := h.dashboard
 	h.mu.RUnlock()
@@ -203,6 +214,80 @@ func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	json.NewEncoder(w).Encode(data)
+}
+
+func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request, monthParam string) {
+	monthStart, _ := getMonthRange(r)
+
+	var employees []models.EmployeeDashboard
+	var allAlerts []models.Alert
+	now := time.Now()
+
+	for _, emp := range h.cfg.Employees {
+		ed := models.EmployeeDashboard{Employee: emp, LastUpdated: now}
+
+		// Tasks since monthStart
+		issues, _ := h.jira.GetEmployeeTasksSince(emp, monthStart)
+		ed.Tasks.ActiveTasks = 0
+		ed.Tasks.CompletedMonth = 0
+		ed.Tasks.ByStatus = make(map[string]int)
+		ed.Tasks.ByType = make(map[string]int)
+		for _, issue := range issues {
+			ed.Tasks.ByStatus[issue.Status]++
+			ed.Tasks.ByType[issue.Type]++
+			if issue.Status == "Закрыт" || issue.Status == "Closed" || issue.Status == "Done" || issue.Status == "Выполнено" || issue.Status == "READY FOR DEVELOPMENT" || issue.Status == "ГОТОВО К ОЦЕНКЕ" || issue.Status == "ГОТОВО" || issue.Status == "Готово к тестированию" {
+				ed.Tasks.CompletedMonth++
+			} else {
+				ed.Tasks.ActiveTasks++
+			}
+			days := int(now.Sub(issue.StatusSince).Hours() / 24)
+			if days >= h.cfg.Alerts.StaleTaskDays {
+				ed.Tasks.StaleTasks++
+			}
+		}
+		ed.Tasks.TotalTasks = len(issues)
+
+		// Confluence
+		confMetrics, _ := h.confluence.GetEmployeeMetrics(emp)
+		ed.Confluence = confMetrics
+
+		// GitLab
+		gitMetrics, _ := h.gitlab.GetEmployeeMetrics(emp)
+		ed.GitLab = gitMetrics
+
+		// Alerts
+		activeIssues, _ := h.jira.GetEmployeeTasks(emp)
+		empAlerts := h.alertEng.CheckAlerts(emp, activeIssues, gitMetrics)
+		ed.Alerts = empAlerts
+		allAlerts = append(allAlerts, empAlerts...)
+
+		employees = append(employees, ed)
+	}
+
+	summary := models.TeamSummary{}
+	for _, ed := range employees {
+		summary.TotalActiveTasks += ed.Tasks.ActiveTasks
+		summary.TotalCompletedMonth += ed.Tasks.CompletedMonth
+		summary.TotalMRsMonth += ed.GitLab.MRsCreatedMonth
+		summary.TotalPagesMonth += ed.Confluence.PagesCreatedMonth + ed.Confluence.PagesUpdatedMonth
+	}
+	summary.TotalAlerts = len(allAlerts)
+	for _, a := range allAlerts {
+		if a.Severity == "critical" {
+			summary.CriticalAlerts++
+		}
+	}
+
+	resp := models.DashboardResponse{
+		Employees:   employees,
+		Summary:     summary,
+		Alerts:      allAlerts,
+		LastUpdated: now,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *Handler) handleAlerts(w http.ResponseWriter, r *http.Request) {

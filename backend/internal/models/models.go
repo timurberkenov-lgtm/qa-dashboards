@@ -123,16 +123,17 @@ type MergeRequest struct {
 
 // ConfluencePage represents a Confluence page with details
 type ConfluencePage struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Space       string    `json:"space"`
-	SpaceName   string    `json:"space_name"`
-	URL         string    `json:"url"`
-	Creator     string    `json:"creator"`
-	LastUpdated time.Time `json:"last_updated"`
-	Version     int       `json:"version"`
-	BodyLength  int       `json:"body_length"` // content length as quality indicator
-	DaysSinceUpdate int  `json:"days_since_update"`
+	ID              string    `json:"id"`
+	Title           string    `json:"title"`
+	Space           string    `json:"space"`
+	SpaceName       string    `json:"space_name"`
+	URL             string    `json:"url"`
+	Creator         string    `json:"creator"`
+	LastUpdated     time.Time `json:"last_updated"`
+	Version         int       `json:"version"`
+	BodyLength      int       `json:"body_length"`
+	DaysSinceUpdate int       `json:"days_since_update"`
+	Changes         string    `json:"changes"` // brief description of what changed
 }
 
 // MRDetailResponse is the response for merge requests page

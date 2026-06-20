@@ -59,6 +59,13 @@
                     <span class="page-subtitle">Системные аналитики | ForteBank</span>
                 </div>
 
+                <div class="filters-bar">
+                    <select class="filter-select" id="dashboardMonthFilter"></select>
+                </div>
+
+                <!-- Gauges -->
+                <section id="gaugesSection"></section>
+
                 <!-- Summary Cards -->
                 <section class="summary-section">
                     <div class="summary-card">
@@ -105,6 +112,9 @@
                     </div>
                 </section>
 
+                <!-- Dashboard Conclusion -->
+                <div class="conclusion-banner" id="dashboardConclusion" style="display:none;"></div>
+
                 <!-- Alerts -->
                 <section class="alerts-section" id="alertsSection" style="display:none;">
                     <div class="alerts-header">
@@ -126,9 +136,6 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- Chart -->
-                <section id="chartSection"></section>
             </div>
 
             <!-- Page: Tasks -->
@@ -241,12 +248,11 @@
                                 <th>Пространство</th>
                                 <th>Версия</th>
                                 <th>Обновлено</th>
-                                <th>Объём</th>
-                                <th>Качество</th>
+                                <th>Изменения</th>
                             </tr>
                         </thead>
                         <tbody id="confTableBody">
-                            <tr><td colspan="7" class="loading-cell"><div class="spinner"></div></td></tr>
+                            <tr><td colspan="6" class="loading-cell"><div class="spinner"></div></td></tr>
                         </tbody>
                     </table>
                 </div>
