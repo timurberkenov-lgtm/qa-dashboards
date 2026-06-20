@@ -8,7 +8,10 @@ function getMonthOptions() {
     const now = new Date();
     let d = new Date(2026, 0, 1);
     while (d <= now) {
-        const val = d.toISOString().slice(0, 7);
+        // Use local year/month to avoid timezone shift
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const val = `${year}-${month}`;
         const label = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' });
         months.push({ val, label });
         d.setMonth(d.getMonth() + 1);
