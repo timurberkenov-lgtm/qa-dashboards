@@ -28,6 +28,7 @@ type Handler struct {
 
 	mu          sync.RWMutex
 	dashboard   *models.DashboardResponse
+	cache       map[string]*models.DashboardResponse // key: month string ("2026-03", "all")
 	lastUpdated time.Time
 }
 
@@ -38,6 +39,7 @@ func NewHandler(cfg *config.Config) *Handler {
 		confluence: collector.NewConfluenceCollector(cfg),
 		gitlab:     collector.NewGitLabCollector(cfg),
 		alertEng:   alerts.NewAlertEngine(cfg),
+		cache:      make(map[string]*models.DashboardResponse),
 	}
 
 	go h.collectData()
@@ -183,6 +185,8 @@ func (h *Handler) collectData() {
 		LastUpdated: now,
 	}
 	h.lastUpdated = now
+	// Invalidate cache on fresh data
+	h.cache = make(map[string]*models.DashboardResponse)
 	h.mu.Unlock()
 
 	log.Printf("Data collection complete. %d employees, %d alerts", len(employees), len(allAlerts))
@@ -218,6 +222,18 @@ func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request, monthParam string) {
+	// Check cache first
+	h.mu.RLock()
+	if cached, ok := h.cache[monthParam]; ok {
+		h.mu.RUnlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(cached)
+		return
+	}
+	h.mu.RUnlock()
+
+	// Cache miss — compute
 	monthStart, _ := getMonthRange(r)
 
 	var employees []models.EmployeeDashboard
@@ -288,6 +304,11 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 		Alerts:      allAlerts,
 		LastUpdated: now,
 	}
+
+	// Store in cache
+	h.mu.Lock()
+	h.cache[monthParam] = &resp
+	h.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
