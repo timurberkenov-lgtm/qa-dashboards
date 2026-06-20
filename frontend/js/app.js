@@ -181,13 +181,31 @@ async function loadTasks() {
 }
 function renderTasksPage(data) {
     const ef = document.getElementById('tasksFilterEmployee'), sf = document.getElementById('tasksFilterStatus'), tf = document.getElementById('tasksFilterType');
+
+    // Save current filter values before rebuilding
+    const prevEmp = ef.value;
+    const prevStatus = sf.value;
+    const prevType = tf.value;
+
     const emps = new Set(), stats = new Set(), types = new Set();
     let all = [];
     data.forEach(d => { emps.add(d.employee); (d.issues||[]).forEach(i => { stats.add(i.status); types.add(i.type); all.push({...i, employee: d.employee}); }); });
     ef.innerHTML = '<option value="all">Все сотрудники</option>'+[...emps].map(e=>`<option value="${e}">${e}</option>`).join('');
     sf.innerHTML = '<option value="all">Все статусы</option>'+[...stats].map(s=>`<option value="${s}">${s}</option>`).join('');
     tf.innerHTML = '<option value="all">Все типы</option>'+[...types].map(t=>`<option value="${t}">${t}</option>`).join('');
+
+    // Restore previous filter values if they still exist in options
+    if (prevEmp && [...ef.options].some(o => o.value === prevEmp)) ef.value = prevEmp;
+    if (prevStatus && [...sf.options].some(o => o.value === prevStatus)) sf.value = prevStatus;
+    if (prevType && [...tf.options].some(o => o.value === prevType)) tf.value = prevType;
+
     renderTasksConclusion(data);
+
+    // Apply filters to the data
+    if (ef.value !== 'all') all = all.filter(i => i.employee === ef.value);
+    if (sf.value !== 'all') all = all.filter(i => i.status === sf.value);
+    if (tf.value !== 'all') all = all.filter(i => i.type === tf.value);
+
     renderTasksTable(all);
 }
 function filterTasks() {
@@ -219,9 +237,24 @@ async function loadMergeRequests() {
     try { const r = await fetch(url); mrData = await r.json(); renderMRPage(mrData); } catch(e) { console.error(e); }
 }
 function renderMRPage(data) {
-    document.getElementById('mrFilterEmployee').innerHTML='<option value="all">Все сотрудники</option>'+data.map(d=>`<option value="${d.employee}">${d.employee}</option>`).join('');
+    const empFilter = document.getElementById('mrFilterEmployee');
+    const prevEmp = empFilter.value;
+
+    empFilter.innerHTML='<option value="all">Все сотрудники</option>'+data.map(d=>`<option value="${d.employee}">${d.employee}</option>`).join('');
+
+    if (prevEmp && [...empFilter.options].some(o => o.value === prevEmp)) empFilter.value = prevEmp;
+
     renderMRConclusion(data);
-    let all=[]; data.forEach(d=>{(d.mrs||[]).forEach(m=>{all.push({...m,employee:d.employee});});}); renderMRTable(all);
+    let all=[]; data.forEach(d=>{(d.mrs||[]).forEach(m=>{all.push({...m,employee:d.employee});});});
+
+    // Apply existing filters
+    const stateVal = document.getElementById('mrFilterState').value;
+    const pipelineVal = document.getElementById('mrFilterPipeline').value;
+    if (empFilter.value !== 'all') all = all.filter(m => m.employee === empFilter.value);
+    if (stateVal !== 'all') all = all.filter(m => m.state === stateVal);
+    if (pipelineVal !== 'all') all = all.filter(m => m.pipeline_status === pipelineVal);
+
+    renderMRTable(all);
 }
 function filterMRs(){if(!mrData)return;let all=[];mrData.forEach(d=>{(d.mrs||[]).forEach(m=>{all.push({...m,employee:d.employee});});});const e=document.getElementById('mrFilterEmployee').value,s=document.getElementById('mrFilterState').value,p=document.getElementById('mrFilterPipeline').value;if(e!=='all')all=all.filter(m=>m.employee===e);if(s!=='all')all=all.filter(m=>m.state===s);if(p!=='all')all=all.filter(m=>m.pipeline_status===p);renderMRTable(all);}
 function renderMRTable(mrs){const tb=document.getElementById('mrTableBody');if(!mrs||!mrs.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет MR</td></tr>';return;}
@@ -241,11 +274,26 @@ async function loadConfluence() {
     try { const r = await fetch(url); confData = await r.json(); renderConfPage(confData); } catch(e) { console.error(e); }
 }
 function renderConfPage(data) {
-    document.getElementById('confFilterEmployee').innerHTML='<option value="all">Все сотрудники</option>'+data.map(d=>`<option value="${d.employee}">${d.employee}</option>`).join('');
+    const empFilter = document.getElementById('confFilterEmployee');
+    const spaceFilter = document.getElementById('confFilterSpace');
+    const prevEmp = empFilter.value;
+    const prevSpace = spaceFilter.value;
+
+    empFilter.innerHTML='<option value="all">Все сотрудники</option>'+data.map(d=>`<option value="${d.employee}">${d.employee}</option>`).join('');
     const spaces=new Set(); data.forEach(d=>{(d.pages||[]).forEach(p=>{if(p.space)spaces.add(p.space+'|'+(p.space_name||p.space));});});
-    document.getElementById('confFilterSpace').innerHTML='<option value="all">Все пространства</option>'+[...spaces].map(s=>{const[k,n]=s.split('|');return`<option value="${k}">${k} — ${n}</option>`;}).join('');
+    spaceFilter.innerHTML='<option value="all">Все пространства</option>'+[...spaces].map(s=>{const[k,n]=s.split('|');return`<option value="${k}">${k} — ${n}</option>`;}).join('');
+
+    if (prevEmp && [...empFilter.options].some(o => o.value === prevEmp)) empFilter.value = prevEmp;
+    if (prevSpace && [...spaceFilter.options].some(o => o.value === prevSpace)) spaceFilter.value = prevSpace;
+
     renderConfConclusion(data);
-    let all=[]; data.forEach(d=>{(d.pages||[]).forEach(p=>{all.push({...p,employee:d.employee});});}); renderConfTable(all);
+    let all=[]; data.forEach(d=>{(d.pages||[]).forEach(p=>{all.push({...p,employee:d.employee});});});
+
+    // Apply existing filters
+    if (empFilter.value !== 'all') all = all.filter(p => p.employee === empFilter.value);
+    if (spaceFilter.value !== 'all') all = all.filter(p => p.space === spaceFilter.value);
+
+    renderConfTable(all);
 }
 function filterConfluence(){if(!confData)return;let all=[];confData.forEach(d=>{(d.pages||[]).forEach(p=>{all.push({...p,employee:d.employee});});});const e=document.getElementById('confFilterEmployee').value,s=document.getElementById('confFilterSpace').value;if(e!=='all')all=all.filter(p=>p.employee===e);if(s!=='all')all=all.filter(p=>p.space===s);renderConfTable(all);}
 function renderConfTable(pages){const tb=document.getElementById('confTableBody');if(!pages||!pages.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных</td></tr>';return;}
