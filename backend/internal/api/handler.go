@@ -202,23 +202,12 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	// If month filter specified, recalculate on the fly
+	// Always use filtered logic (default = current month)
 	monthParam := r.URL.Query().Get("month")
-	if monthParam != "" {
-		h.handleDashboardFiltered(w, r, monthParam)
-		return
+	if monthParam == "" {
+		monthParam = time.Now().Format("2006-01")
 	}
-
-	h.mu.RLock()
-	data := h.dashboard
-	h.mu.RUnlock()
-	if data == nil {
-		http.Error(w, "Data not yet available", http.StatusServiceUnavailable)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(data)
+	h.handleDashboardFiltered(w, r, monthParam)
 }
 
 func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request, monthParam string) {
@@ -233,18 +222,37 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 	}
 	h.mu.RUnlock()
 
-	// Cache miss — compute
-	monthStart, _ := getMonthRange(r)
+	// Calculate date range
+	var monthStart, monthEnd time.Time
+	now := time.Now()
+	if monthParam == "all" {
+		monthStart = dataStartDate
+		monthEnd = time.Time{} // no upper bound
+	} else {
+		t, err := time.Parse("2006-01", monthParam)
+		if err == nil {
+			monthStart = t
+			monthEnd = t.AddDate(0, 1, 0)
+		} else {
+			monthStart = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+			monthEnd = monthStart.AddDate(0, 1, 0)
+		}
+	}
+
+	// Determine until for queries
+	var until time.Time
+	if monthParam != "all" {
+		until = monthEnd
+	}
 
 	var employees []models.EmployeeDashboard
 	var allAlerts []models.Alert
-	now := time.Now()
 
 	for _, emp := range h.cfg.Employees {
 		ed := models.EmployeeDashboard{Employee: emp, LastUpdated: now}
 
-		// Tasks since monthStart
-		issues, _ := h.jira.GetEmployeeTasksSince(emp, monthStart)
+		// Tasks in date range
+		issues, _ := h.jira.GetEmployeeTasksRange(emp, monthStart, until)
 		ed.Tasks.ActiveTasks = 0
 		ed.Tasks.CompletedMonth = 0
 		ed.Tasks.ByStatus = make(map[string]int)
@@ -275,8 +283,7 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 		if monthParam == "all" {
 			mrs, _ = h.gitlab.GetEmployeeMRDetailsSince(emp, monthStart)
 		} else {
-			_, mEnd := getMonthRange(r)
-			mrs, _ = h.gitlab.GetEmployeeMRDetailsRange(emp, monthStart, mEnd)
+			mrs, _ = h.gitlab.GetEmployeeMRDetailsRange(emp, monthStart, until)
 		}
 		gitMetrics := countMRMetrics(mrs)
 		ed.GitLab = gitMetrics
