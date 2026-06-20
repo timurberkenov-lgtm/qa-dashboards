@@ -1,0 +1,6 @@
+.env
+*.exe
+*.out
+backend/server
+/vendor
+.DS_Store

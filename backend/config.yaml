@@ -1,0 +1,79 @@
+server:
+  port: 8080
+  poll_interval: 5m
+
+jira:
+  url: "https://jira.fortebank.com"
+  token: "${JIRA_TOKEN}"
+
+confluence:
+  url: "https://confluence.fortebank.com"
+  token: "${CONFLUENCE_TOKEN}"
+
+gitlab:
+  url: "https://gitlab.fortebank.com"
+  token: "${GITLAB_TOKEN}"
+
+alerts:
+  stale_task_days: 5
+  no_assignee_hours: 24
+  mr_no_review_hours: 48
+  no_activity_days: 3
+
+employees:
+  - name: "Алтыбасарова Динара"
+    email: "DAltybassarova@Fortebank.com"
+    jira_projects: ["PMB"]
+    gitlab_groups: ["phoenix/backend"]
+    role: "Системный аналитик"
+
+  - name: "Әбдіхалық Шынар"
+    email: "SAbdikhalyk@Fortebank.com"
+    jira_projects: ["PMB"]
+    gitlab_groups: ["phoenix/backend"]
+    role: "Системный аналитик"
+
+  - name: "Аубакиров Диас"
+    email: "DiaAubakirov@Fortebank.com"
+    jira_projects: ["VED", "TRF"]
+    gitlab_groups: []
+    role: "Системный аналитик"
+
+  - name: "Утешкалиев Алиасқар"
+    email: "AUteshkaliyev@Fortebank.com"
+    jira_projects: []  # все где упоминается
+    gitlab_groups: ["domains"]
+    role: "Системный аналитик"
+
+  - name: "Абдукаримова Айдана"
+    email: "AAbdukarimova@Fortebank.com"
+    jira_projects: ["DPC"]
+    gitlab_groups: ["domains/product"]
+    role: "Системный аналитик"
+
+# Трекинг проект для задач на анализ
+analysis_project: "NSA"
+
+# Статусная модель
+workflows:
+  analysis:
+    in_progress: ["На анализе"]
+    done: ["Выполнено"]
+
+  user_story:
+    in_progress: ["ANALYSIS"]
+    done: ["READY FOR DEVELOPMENT"]
+
+  user_story_domains:
+    in_progress: ["ANALYTICS"]
+    review: ["ГОТОВА к ARCHQG"]
+    done: ["ГОТОВО К ОЦЕНКЕ"]
+
+  ved_trf:
+    in_progress: ["Анализ начат"]
+    done: ["Готово к тестированию"]
+
+  support:
+    types: ["Ошибка", "Инцидент"]
+    in_progress: ["АНАЛИЗ"]
+    done: ["ГОТОВО"]

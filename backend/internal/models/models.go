@@ -1,0 +1,103 @@
+package models
+
+import "time"
+
+// Employee represents a team member
+type Employee struct {
+	Name          string   `json:"name" yaml:"name"`
+	Email         string   `json:"email" yaml:"email"`
+	JiraProjects  []string `json:"jira_projects" yaml:"jira_projects"`
+	GitLabGroups  []string `json:"gitlab_groups" yaml:"gitlab_groups"`
+	Role          string   `json:"role" yaml:"role"`
+}
+
+// TaskMetrics holds task-related metrics for an employee
+type TaskMetrics struct {
+	ActiveTasks      int            `json:"active_tasks"`
+	TotalTasks       int            `json:"total_tasks"`
+	CompletedToday   int            `json:"completed_today"`
+	CompletedMonth   int            `json:"completed_month"`
+	AvgCycleTimeDays float64        `json:"avg_cycle_time_days"`
+	ByStatus         map[string]int `json:"by_status"`
+	ByType           map[string]int `json:"by_type"`
+	OverdueTasks     int            `json:"overdue_tasks"`
+	StaleTasks       int            `json:"stale_tasks"` // > 5 days in same status
+}
+
+// ConfluenceMetrics holds documentation quality metrics
+type ConfluenceMetrics struct {
+	PagesCreatedMonth  int     `json:"pages_created_month"`
+	PagesUpdatedMonth  int     `json:"pages_updated_month"`
+	PagesCreatedToday  int     `json:"pages_created_today"`
+	TotalPages         int     `json:"total_pages"`
+	StalePages         int     `json:"stale_pages"` // not updated > 30 days
+	QualityScore       float64 `json:"quality_score"` // 0-100
+}
+
+// GitLabMetrics holds code/proto contract quality metrics
+type GitLabMetrics struct {
+	MRsCreatedMonth  int     `json:"mrs_created_month"`
+	MRsMergedMonth   int     `json:"mrs_merged_month"`
+	MRsOpen          int     `json:"mrs_open"`
+	CommitsMonth     int     `json:"commits_month"`
+	CommitsToday     int     `json:"commits_today"`
+	AvgReviewTimeH   float64 `json:"avg_review_time_hours"`
+	MRsWithoutReview int     `json:"mrs_without_review"`
+}
+
+// Alert represents a notification about an issue
+type Alert struct {
+	ID         string    `json:"id"`
+	Employee   string    `json:"employee"`
+	Type       string    `json:"type"` // stale_task, no_activity, mr_no_review, overdue
+	Severity   string    `json:"severity"` // warning, critical
+	Message    string    `json:"message"`
+	TaskKey    string    `json:"task_key,omitempty"`
+	TaskURL    string    `json:"task_url,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	DaysInStatus int    `json:"days_in_status,omitempty"`
+}
+
+// EmployeeDashboard is the complete data for one employee card
+type EmployeeDashboard struct {
+	Employee    Employee          `json:"employee"`
+	Tasks       TaskMetrics       `json:"tasks"`
+	Confluence  ConfluenceMetrics `json:"confluence"`
+	GitLab      GitLabMetrics     `json:"gitlab"`
+	Alerts      []Alert           `json:"alerts"`
+	LastUpdated time.Time         `json:"last_updated"`
+}
+
+// DashboardResponse is the full API response
+type DashboardResponse struct {
+	Employees   []EmployeeDashboard `json:"employees"`
+	Summary     TeamSummary         `json:"summary"`
+	Alerts      []Alert             `json:"alerts"`
+	LastUpdated time.Time           `json:"last_updated"`
+}
+
+// TeamSummary holds aggregated team metrics
+type TeamSummary struct {
+	TotalActiveTasks    int     `json:"total_active_tasks"`
+	TotalCompletedToday int     `json:"total_completed_today"`
+	TotalCompletedMonth int     `json:"total_completed_month"`
+	TotalAlerts         int     `json:"total_alerts"`
+	CriticalAlerts      int     `json:"critical_alerts"`
+	TeamAvgCycleTime    float64 `json:"team_avg_cycle_time_days"`
+	TotalMRsMonth       int     `json:"total_mrs_month"`
+	TotalPagesMonth     int     `json:"total_pages_month"`
+}
+
+// JiraIssue represents a simplified Jira issue
+type JiraIssue struct {
+	Key          string    `json:"key"`
+	Summary      string    `json:"summary"`
+	Status       string    `json:"status"`
+	Type         string    `json:"type"`
+	Assignee     string    `json:"assignee"`
+	Created      time.Time `json:"created"`
+	Updated      time.Time `json:"updated"`
+	StatusSince  time.Time `json:"status_since"`
+	Project      string    `json:"project"`
+	URL          string    `json:"url"`
+}
