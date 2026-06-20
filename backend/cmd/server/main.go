@@ -30,13 +30,22 @@ func main() {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
-	// Serve frontend static files
-	fs := http.FileServer(http.Dir("../frontend"))
-	mux.Handle("/", fs)
+	// Serve frontend static files with no-cache headers
+	fsHandler := http.FileServer(http.Dir("../frontend"))
+	mux.Handle("/", noCacheMiddleware(fsHandler))
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("Server listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func noCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		next.ServeHTTP(w, r)
+	})
 }
