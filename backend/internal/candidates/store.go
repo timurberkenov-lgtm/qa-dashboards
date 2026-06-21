@@ -121,14 +121,14 @@ func (s *Store) Delete(id string) error {
 	return fmt.Errorf("candidate %s not found", id)
 }
 
-// AddComment adds a comment to a candidate
-func (s *Store) AddComment(id string, comment Comment) error {
+// UpdateConclusion updates the conclusion text for a candidate
+func (s *Store) UpdateConclusion(id string, conclusion string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for i, c := range s.candidates {
 		if c.ID == id {
-			s.candidates[i].Comments = append(c.Comments, comment)
+			s.candidates[i].Conclusion = conclusion
 			return s.save()
 		}
 	}

@@ -422,20 +422,15 @@ function renderCandidatesTable(candidates) {
         const resultLabel = c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : 'Отклонён';
         const resultClass = c.result === 'accepted' ? 'done' : c.result === 'accepted_no_sb' ? 'review' : 'stale';
         const scores = c.competencies ? c.competencies.map(comp => `<span title="${comp.name}: ${comp.comment||''}" style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:3px;font-size:10px;margin-right:2px;background:${comp.score>=4?'rgba(52,211,153,0.2)':comp.score>=3?'rgba(251,191,36,0.2)':'rgba(248,113,113,0.2)'};color:${comp.score>=4?'var(--accent-green)':comp.score>=3?'var(--accent-yellow)':'var(--accent-red)'}">${comp.score}</span>`).join('') : '';
-        const commentsCount = (c.comments || []).length;
-        const commentsHtml = commentsCount > 0 ? `<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">${(c.comments||[]).map(cm => `<div style="margin-top:2px"><b>${cm.author||'—'}</b>: ${cm.text}</div>`).join('')}</div>` : '';
         return `<tr>
             <td><strong style="font-size:13px">${c.name}</strong><div style="margin-top:4px">${scores}</div></td>
             <td style="font-size:12px">${date}</td>
             <td style="font-size:14px;font-weight:600">${c.avg_score}</td>
             <td><span class="task-status-badge in-progress">${c.level}</span></td>
             <td><span class="task-status-badge ${resultClass}">${resultLabel}</span></td>
-            <td style="font-size:12px;max-width:220px;color:var(--text-secondary)">${c.conclusion}${commentsHtml}</td>
+            <td><span class="editable-conclusion" onclick="editConclusion('${c.id}', this)" title="Нажмите для редактирования">${c.conclusion || '—'}</span></td>
             <td>
-                <div style="display:flex;gap:4px">
-                    <button class="btn-icon" onclick="promptComment('${c.id}')" title="Комментарий"><i class="fas fa-comment"></i></button>
-                    <button class="btn-icon btn-icon-danger" onclick="deleteCandidate('${c.id}','${c.name}')" title="Удалить"><i class="fas fa-trash"></i></button>
-                </div>
+                <button class="btn-icon btn-icon-danger" onclick="deleteCandidate('${c.id}','${c.name}')" title="Удалить"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }).join('');
@@ -497,13 +492,25 @@ async function deleteCandidate(id, name) {
     } catch(e) { alert('Ошибка: ' + e.message); }
 }
 
-async function promptComment(id) {
-    const text = prompt('Комментарий:');
-    if (!text || !text.trim()) return;
-    const author = prompt('Автор (имя):', 'Тимур Беркенов');
-    try {
-        const r = await fetch(`${API_BASE}/api/candidates/comment`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id, author: author||'', text: text.trim()}) });
-        if (r.ok) loadCandidates();
-        else alert('Ошибка');
-    } catch(e) { alert('Ошибка: ' + e.message); }
+function editConclusion(id, el) {
+    const current = el.textContent;
+    const input = document.createElement('textarea');
+    input.value = current === '—' ? '' : current;
+    input.className = 'form-input';
+    input.style.fontSize = '12px';
+    input.style.minHeight = '50px';
+    input.style.width = '100%';
+    el.replaceWith(input);
+    input.focus();
+
+    async function save() {
+        const newText = input.value.trim();
+        try {
+            await fetch(`${API_BASE}/api/candidates/conclusion`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id, conclusion: newText}) });
+        } catch(e) {}
+        loadCandidates();
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } });
 }

@@ -20,14 +20,6 @@ type Candidate struct {
 	AvgScore     float64      `json:"avg_score"`
 	Level        string       `json:"level"` // Junior, Junior+, Middle, Middle+, Senior, etc.
 	Grade        int          `json:"grade"` // 8-15
-	Comments     []Comment    `json:"comments"`
-}
-
-// Comment represents a note added to a candidate
-type Comment struct {
-	Author    string    `json:"author"`
-	Text      string    `json:"text"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 // Stats holds aggregated interview statistics
