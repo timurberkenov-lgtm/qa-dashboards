@@ -31,6 +31,7 @@ function navigateTo(page) {
     document.getElementById(`page-${page}`).classList.remove('hidden');
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelector(`[data-page="${page}"]`).classList.add('active');
+    if (page === 'dashboard') fetchDashboard();
     if (page === 'tasks') loadTasks();
     if (page === 'merge-requests') loadMergeRequests();
     if (page === 'confluence') loadConfluence();
@@ -51,7 +52,7 @@ async function fetchDashboard() {
     try {
         const month = document.getElementById('dashboardMonthFilter')?.value || '';
         const url = month ? `${API_BASE}/api/dashboard?month=${month}` : `${API_BASE}/api/dashboard`;
-        const resp = await fetch(url);
+        const resp = await fetch(url, { cache: 'no-store' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         dashboardData = await resp.json();
         renderDashboard(dashboardData);
