@@ -1032,3 +1032,36 @@ body {
 #page-dashboard {
     position: relative;
 }
+
+
+/* Export Button */
+.alerts-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-export {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--accent-green);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+
+.btn-export:hover {
+    background: rgba(52, 211, 153, 0.2);
+    border-color: var(--accent-green);
+}
+
+.btn-export i {
+    font-size: 13px;
+}

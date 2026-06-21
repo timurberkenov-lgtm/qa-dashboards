@@ -332,3 +332,47 @@ function getInitials(n){const p=n.split(' ');return p.length>=2?(p[0][0]+p[1][0]
 function getDays(d){if(!d)return 0;return Math.floor((new Date()-new Date(d))/(86400000));}
 function updateConnectionStatus(c){const el=document.getElementById('connectionStatus');if(c){el.innerHTML='<span class="status-dot"></span><span>Live</span>';el.style.color='var(--accent-green)';}else{el.innerHTML='<span class="status-dot" style="background:var(--accent-red)"></span><span>Offline</span>';el.style.color='var(--accent-red)';}}
 function toggleAlerts(){const l=document.getElementById('alertsList'),i=document.getElementById('alertsToggleIcon');if(l.style.display==='none'){l.style.display='flex';i.className='fas fa-chevron-down';}else{l.style.display='none';i.className='fas fa-chevron-right';}}
+
+// === EXPORT ===
+function exportAlertsToExcel() {
+    if (!dashboardData || !dashboardData.alerts || dashboardData.alerts.length === 0) {
+        alert('Нет алертов для экспорта');
+        return;
+    }
+
+    const rows = dashboardData.alerts.map(a => ({
+        'Сотрудник': a.employee,
+        'Тип': getAlertTypeLabel(a.type),
+        'Серьёзность': a.severity === 'critical' ? 'Критичный' : 'Внимание',
+        'Описание': a.message,
+        'Задача': a.task_key || '-',
+        'Ссылка': a.task_url || '-',
+        'Дней в статусе': a.days_in_status || '-',
+        'Дата': new Date(a.created_at).toLocaleDateString('ru-RU')
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Auto-width columns
+    const colWidths = Object.keys(rows[0]).map(key => ({
+        wch: Math.max(key.length, ...rows.map(r => String(r[key]).length)) + 2
+    }));
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Алерты');
+
+    const month = document.getElementById('dashboardMonthFilter')?.value || 'текущий';
+    const filename = `alerts_${month || 'current'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    XLSX.writeFile(wb, filename);
+}
+
+function getAlertTypeLabel(type) {
+    switch(type) {
+        case 'stale_task': return 'Задача зависла';
+        case 'no_activity': return 'Нет активности';
+        case 'mr_no_review': return 'MR без ревью';
+        case 'overdue': return 'Просрочена';
+        default: return type;
+    }
+}
