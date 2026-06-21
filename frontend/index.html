@@ -36,6 +36,10 @@
                     <i class="fas fa-file-alt"></i>
                     <span>Документация</span>
                 </a>
+                <a href="#" class="nav-item" data-page="candidates" onclick="navigateTo('candidates')">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Собеседования</span>
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <div class="status-indicator" id="connectionStatus">
@@ -246,6 +250,79 @@
                             <tr><td colspan="6" class="loading-cell"><div class="spinner"></div></td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <!-- Page: Candidates -->
+            <div class="page hidden" id="page-candidates">
+                <div class="page-header">
+                    <h1>Собеседования</h1>
+                    <span class="page-subtitle">Подбор кандидатов — Системные аналитики</span>
+                </div>
+                <div class="filters-bar">
+                    <select class="filter-select" id="candidatesMonthFilter"></select>
+                    <select class="filter-select" id="candidatesResultFilter" onchange="filterCandidates()">
+                        <option value="all">Все результаты</option>
+                        <option value="accepted">Принят</option>
+                        <option value="rejected">Отклонён</option>
+                        <option value="accepted_no_sb">Не прошёл СБ</option>
+                    </select>
+                    <button class="btn-export" onclick="showAddCandidateForm()">
+                        <i class="fas fa-plus"></i> Добавить
+                    </button>
+                    <button class="btn-export" onclick="exportCandidatesToExcel()">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                </div>
+
+                <!-- Stats -->
+                <div class="summary-section" style="grid-template-columns:repeat(5,1fr)" id="candidatesStats"></div>
+
+                <!-- Conclusion -->
+                <div class="conclusion-banner" id="candidatesConclusion" style="display:none;"></div>
+
+                <!-- Table -->
+                <div class="tasks-table-container">
+                    <table class="data-table" id="candidatesTable">
+                        <thead>
+                            <tr>
+                                <th>Кандидат</th>
+                                <th>Дата</th>
+                                <th>Балл</th>
+                                <th>Уровень</th>
+                                <th>Результат</th>
+                                <th>Заключение</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidatesTableBody">
+                            <tr><td colspan="6" class="loading-cell"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add Form (hidden by default) -->
+                <div class="candidate-form-overlay" id="candidateFormOverlay" style="display:none;">
+                    <div class="candidate-form">
+                        <h3><i class="fas fa-user-plus"></i> Новый кандидат</h3>
+                        <div class="form-row">
+                            <input type="text" id="cf_name" placeholder="ФИО кандидата" class="form-input">
+                            <input type="date" id="cf_date" class="form-input">
+                        </div>
+                        <div class="form-competencies" id="cf_competencies"></div>
+                        <div class="form-row">
+                            <select id="cf_result" class="form-input">
+                                <option value="rejected">Отклонён</option>
+                                <option value="accepted">Принят</option>
+                                <option value="accepted_no_sb">Не прошёл СБ</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <textarea id="cf_conclusion" placeholder="Заключение" class="form-input" rows="2"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-save" onclick="submitCandidate()"><i class="fas fa-check"></i> Сохранить</button>
+                            <button class="btn-cancel" onclick="hideAddCandidateForm()">Отмена</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>

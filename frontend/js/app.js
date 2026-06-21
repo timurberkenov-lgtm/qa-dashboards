@@ -35,6 +35,7 @@ function navigateTo(page) {
     if (page === 'tasks') loadTasks();
     if (page === 'merge-requests') loadMergeRequests();
     if (page === 'confluence') loadConfluence();
+    if (page === 'candidates') loadCandidates();
 }
 
 function initMonthFilter(id, onChange) {
@@ -375,4 +376,106 @@ function getAlertTypeLabel(type) {
         case 'overdue': return 'Просрочена';
         default: return type;
     }
+}
+
+// === CANDIDATES ===
+let candidatesData = null;
+const COMPETENCIES = ['Способы интеграции систем','Проектирование интеграций (SOAP, REST, gRPC, очереди)','Описание ТЗ на разработку','Проектирование БД (SQL, связи, индексы, нормализация)','Синхронное/асинхронное взаимодействие','Брокеры сообщений (Kafka/RabbitMQ)','Разбор архитектуры (монолит/микросервис/SOA)'];
+
+async function loadCandidates() {
+    initMonthFilter('candidatesMonthFilter', () => loadCandidates());
+    const month = document.getElementById('candidatesMonthFilter')?.value || '';
+    const url = month ? `${API_BASE}/api/candidates?month=${month}` : `${API_BASE}/api/candidates`;
+    try { const r = await fetch(url, {cache:'no-store'}); candidatesData = await r.json(); renderCandidatesPage(candidatesData); } catch(e) { console.error(e); }
+}
+
+function renderCandidatesPage(data) {
+    // Stats
+    const s = data.stats;
+    document.getElementById('candidatesStats').innerHTML = `
+        <div class="summary-card"><div class="summary-icon blue"><i class="fas fa-users"></i></div><div class="summary-content"><span class="summary-value">${s.total}</span><span class="summary-label">Всего</span></div></div>
+        <div class="summary-card"><div class="summary-icon green"><i class="fas fa-user-check"></i></div><div class="summary-content"><span class="summary-value">${s.accepted}</span><span class="summary-label">Принято</span></div></div>
+        <div class="summary-card"><div class="summary-icon red"><i class="fas fa-user-times"></i></div><div class="summary-content"><span class="summary-value">${s.rejected}</span><span class="summary-label">Отклонено</span></div></div>
+        <div class="summary-card"><div class="summary-icon orange"><i class="fas fa-percentage"></i></div><div class="summary-content"><span class="summary-value">${s.conversion}%</span><span class="summary-label">Конверсия</span></div></div>
+        <div class="summary-card"><div class="summary-icon purple"><i class="fas fa-star-half-alt"></i></div><div class="summary-content"><span class="summary-value">${s.avg_score}</span><span class="summary-label">Средний балл</span></div></div>
+    `;
+    // Conclusion
+    const el = document.getElementById('candidatesConclusion');
+    el.style.display = 'block';
+    const hasIssues = s.conversion < 30 || s.total === 0;
+    el.className = `conclusion-banner ${hasIssues ? 'has-issues' : ''}`;
+    el.innerHTML = `<div class="conclusion-title"><i class="fas ${hasIssues?'fa-exclamation-circle':'fa-check-circle'}"></i> Заключение</div><div class="conclusion-items"><div class="conclusion-item"><span class="issue-text">${data.conclusion}</span></div></div>`;
+    // Table
+    let candidates = data.candidates || [];
+    const resultFilter = document.getElementById('candidatesResultFilter').value;
+    if (resultFilter !== 'all') candidates = candidates.filter(c => c.result === resultFilter);
+    renderCandidatesTable(candidates);
+}
+
+function filterCandidates() { if (candidatesData) renderCandidatesPage(candidatesData); }
+
+function renderCandidatesTable(candidates) {
+    const tb = document.getElementById('candidatesTableBody');
+    if (!candidates || !candidates.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных</td></tr>'; return; }
+    tb.innerHTML = candidates.map(c => {
+        const date = new Date(c.date).toLocaleDateString('ru-RU');
+        const resultLabel = c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : 'Отклонён';
+        const resultClass = c.result === 'accepted' ? 'done' : c.result === 'accepted_no_sb' ? 'review' : 'stale';
+        const scores = c.competencies ? c.competencies.map(comp => `<span title="${comp.name}: ${comp.comment||''}" style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:3px;font-size:10px;margin-right:2px;background:${comp.score>=4?'rgba(52,211,153,0.2)':comp.score>=3?'rgba(251,191,36,0.2)':'rgba(248,113,113,0.2)'};color:${comp.score>=4?'var(--accent-green)':comp.score>=3?'var(--accent-yellow)':'var(--accent-red)'}">${comp.score}</span>`).join('') : '';
+        return `<tr>
+            <td><strong style="font-size:13px">${c.name}</strong><div style="margin-top:4px">${scores}</div></td>
+            <td style="font-size:12px">${date}</td>
+            <td style="font-size:14px;font-weight:600">${c.avg_score}</td>
+            <td><span class="task-status-badge in-progress">${c.level}</span></td>
+            <td><span class="task-status-badge ${resultClass}">${resultLabel}</span></td>
+            <td style="font-size:12px;max-width:250px;color:var(--text-secondary)">${c.conclusion}</td>
+        </tr>`;
+    }).join('');
+}
+
+function showAddCandidateForm() {
+    document.getElementById('candidateFormOverlay').style.display = 'flex';
+    const comps = document.getElementById('cf_competencies');
+    comps.innerHTML = COMPETENCIES.map((name, i) => `
+        <div class="form-comp-row">
+            <span class="form-comp-name">${name}</span>
+            <input type="number" min="1" max="8" value="1" id="cf_score_${i}" class="form-input-sm">
+            <input type="text" placeholder="Комментарий" id="cf_comment_${i}" class="form-input" style="flex:1">
+        </div>
+    `).join('');
+    document.getElementById('cf_date').value = new Date().toISOString().slice(0, 10);
+}
+
+function hideAddCandidateForm() { document.getElementById('candidateFormOverlay').style.display = 'none'; }
+
+async function submitCandidate() {
+    const name = document.getElementById('cf_name').value.trim();
+    if (!name) { alert('Укажите ФИО'); return; }
+    const date = document.getElementById('cf_date').value;
+    const result = document.getElementById('cf_result').value;
+    const conclusion = document.getElementById('cf_conclusion').value.trim();
+    const competencies = COMPETENCIES.map((compName, i) => ({
+        name: compName,
+        score: parseInt(document.getElementById(`cf_score_${i}`).value) || 1,
+        comment: document.getElementById(`cf_comment_${i}`).value.trim()
+    }));
+    const body = { name, date: date + 'T00:00:00+05:00', result, conclusion, competencies };
+    try {
+        const r = await fetch(`${API_BASE}/api/candidates/add`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (r.ok) { hideAddCandidateForm(); loadCandidates(); } else { alert('Ошибка сохранения'); }
+    } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+function exportCandidatesToExcel() {
+    if (!candidatesData || !candidatesData.candidates || !candidatesData.candidates.length) { alert('Нет данных'); return; }
+    const rows = candidatesData.candidates.map(c => {
+        const row = { 'ФИО': c.name, 'Дата': new Date(c.date).toLocaleDateString('ru-RU'), 'Средний балл': c.avg_score, 'Уровень': c.level, 'Grade': c.grade, 'Результат': c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : 'Отклонён', 'Заключение': c.conclusion };
+        (c.competencies || []).forEach(comp => { row[comp.name] = comp.score; });
+        return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Собеседования');
+    XLSX.writeFile(wb, `interviews_${new Date().toISOString().slice(0,10)}.xlsx`);
 }

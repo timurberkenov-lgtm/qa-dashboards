@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/api"
+	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/candidates"
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/config"
 )
 
@@ -26,9 +27,11 @@ func main() {
 	log.Printf("Monitoring %d employees", len(cfg.Employees))
 
 	handler := api.NewHandler(cfg)
+	candidatesHandler := candidates.NewHandler("data/candidates.json")
 
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
+	candidatesHandler.RegisterRoutes(mux)
 
 	// Serve frontend static files with no-cache headers
 	fsHandler := http.FileServer(http.Dir("../frontend"))
