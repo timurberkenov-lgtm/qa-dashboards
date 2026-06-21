@@ -50,6 +50,7 @@ function initMonthFilter(id, onChange) {
 // === DASHBOARD ===
 async function fetchDashboard() {
     try {
+        showDashboardLoading(true);
         const month = document.getElementById('dashboardMonthFilter')?.value || '';
         const url = month ? `${API_BASE}/api/dashboard?month=${month}` : `${API_BASE}/api/dashboard`;
         const resp = await fetch(url, { cache: 'no-store' });
@@ -58,6 +59,23 @@ async function fetchDashboard() {
         renderDashboard(dashboardData);
         updateConnectionStatus(true);
     } catch (err) { console.error('Fetch error:', err); updateConnectionStatus(false); }
+    finally { showDashboardLoading(false); }
+}
+
+function showDashboardLoading(show) {
+    let overlay = document.getElementById('dashboardLoadingOverlay');
+    if (show) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'dashboardLoadingOverlay';
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = '<div class="loading-overlay-content"><div class="spinner"></div><span>Загрузка данных...</span></div>';
+            document.getElementById('page-dashboard').appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+    } else {
+        if (overlay) overlay.style.display = 'none';
+    }
 }
 
 function renderDashboard(data) {
