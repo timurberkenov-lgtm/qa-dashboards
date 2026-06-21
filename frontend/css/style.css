@@ -1187,3 +1187,31 @@ body {
 }
 
 .btn-cancel:hover { border-color: var(--text-secondary); }
+
+
+/* Icon buttons */
+.btn-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.btn-icon-danger:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+}

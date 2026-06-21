@@ -121,6 +121,20 @@ func (s *Store) Delete(id string) error {
 	return fmt.Errorf("candidate %s not found", id)
 }
 
+// AddComment adds a comment to a candidate
+func (s *Store) AddComment(id string, comment Comment) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, c := range s.candidates {
+		if c.ID == id {
+			s.candidates[i].Comments = append(c.Comments, comment)
+			return s.save()
+		}
+	}
+	return fmt.Errorf("candidate %s not found", id)
+}
+
 // CalculateStats computes stats for a set of candidates
 func CalculateStats(candidates []Candidate) Stats {
 	stats := Stats{Total: len(candidates)}

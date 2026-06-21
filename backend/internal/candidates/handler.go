@@ -23,6 +23,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/candidates", h.handleCandidates)
 	mux.HandleFunc("/api/candidates/add", h.handleAddCandidate)
 	mux.HandleFunc("/api/candidates/delete", h.handleDeleteCandidate)
+	mux.HandleFunc("/api/candidates/comment", h.handleAddComment)
 }
 
 func (h *Handler) handleCandidates(w http.ResponseWriter, r *http.Request) {
@@ -107,6 +108,43 @@ func (h *Handler) handleDeleteCandidate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := h.store.Delete(req.ID); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func (h *Handler) handleAddComment(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID     string `json:"id"`
+		Author string `json:"author"`
+		Text   string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.Text == "" {
+		http.Error(w, "Text is required", http.StatusBadRequest)
+		return
+	}
+
+	comment := Comment{
+		Author:    req.Author,
+		Text:      req.Text,
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.store.AddComment(req.ID, comment); err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
