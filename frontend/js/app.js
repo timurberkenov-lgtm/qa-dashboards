@@ -463,8 +463,8 @@ function renderCandidatesTable(candidates) {
     if (!candidates || !candidates.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных</td></tr>'; return; }
     tb.innerHTML = candidates.map(c => {
         const date = new Date(c.date).toLocaleDateString('ru-RU');
-        const resultLabel = c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : 'Отклонён';
-        const resultClass = c.result === 'accepted' ? 'done' : c.result === 'accepted_no_sb' ? 'review' : 'stale';
+        const resultLabel = c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : c.result === 'pending' ? 'В ожидании' : 'Отклонён';
+        const resultClass = c.result === 'accepted' ? 'done' : c.result === 'accepted_no_sb' ? 'review' : c.result === 'pending' ? 'status-blue' : 'stale';
         const scores = c.competencies ? c.competencies.map(comp => `<span title="${comp.name}: ${comp.comment||''}" style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:3px;font-size:10px;margin-right:2px;background:${comp.score>=4?'rgba(52,211,153,0.2)':comp.score>=3?'rgba(251,191,36,0.2)':'rgba(248,113,113,0.2)'};color:${comp.score>=4?'var(--accent-green)':comp.score>=3?'var(--accent-yellow)':'var(--accent-red)'}">${comp.score}</span>`).join('') : '';
         return `<tr>
             <td><strong style="font-size:13px">${c.name}</strong><div style="margin-top:4px">${scores}</div></td>
@@ -516,7 +516,7 @@ async function submitCandidate() {
 function exportCandidatesToExcel() {
     if (!candidatesData || !candidatesData.candidates || !candidatesData.candidates.length) { alert('Нет данных'); return; }
     const rows = candidatesData.candidates.map(c => {
-        const row = { 'ФИО': c.name, 'Дата': new Date(c.date).toLocaleDateString('ru-RU'), 'Средний балл': c.avg_score, 'Уровень': c.level, 'Grade': c.grade, 'Результат': c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : 'Отклонён', 'Заключение': c.conclusion };
+        const row = { 'ФИО': c.name, 'Дата': new Date(c.date).toLocaleDateString('ru-RU'), 'Средний балл': c.avg_score, 'Уровень': c.level, 'Grade': c.grade, 'Результат': c.result === 'accepted' ? 'Принят' : c.result === 'accepted_no_sb' ? 'Не прошёл СБ' : c.result === 'pending' ? 'В ожидании' : 'Отклонён', 'Заключение': c.conclusion };
         (c.competencies || []).forEach(comp => { row[comp.name] = comp.score; });
         return row;
     });
