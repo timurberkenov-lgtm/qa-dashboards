@@ -278,6 +278,10 @@
                         <option value="rejected">Отклонён</option>
                         <option value="accepted_no_sb">Не прошёл СБ</option>
                     </select>
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="candidatesSearch" placeholder="Поиск..." oninput="filterCandidates()">
+                    </div>
                     <button class="btn-export" onclick="showAddCandidateForm()">
                         <i class="fas fa-plus"></i> Добавить
                     </button>

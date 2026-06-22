@@ -448,7 +448,15 @@ function renderCandidatesPage(data) {
     renderCandidatesTable(candidates);
 }
 
-function filterCandidates() { if (candidatesData) renderCandidatesPage(candidatesData); }
+function filterCandidates() {
+    if (!candidatesData) return;
+    let candidates = candidatesData.candidates || [];
+    const resultFilter = document.getElementById('candidatesResultFilter').value;
+    const search = (document.getElementById('candidatesSearch')?.value || '').toLowerCase();
+    if (resultFilter !== 'all') candidates = candidates.filter(c => c.result === resultFilter);
+    if (search) candidates = candidates.filter(c => (c.name + ' ' + c.conclusion + ' ' + c.level + ' ' + c.result).toLowerCase().includes(search));
+    renderCandidatesTable(candidates);
+}
 
 function renderCandidatesTable(candidates) {
     const tb = document.getElementById('candidatesTableBody');
