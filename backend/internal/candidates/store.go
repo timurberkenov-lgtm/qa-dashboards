@@ -135,6 +135,29 @@ func (s *Store) UpdateConclusion(id string, conclusion string) error {
 	return fmt.Errorf("candidate %s not found", id)
 }
 
+// Update replaces a candidate's data (keeps same ID)
+func (s *Store) Update(c Candidate) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, existing := range s.candidates {
+		if existing.ID == c.ID {
+			// Recalculate score and level
+			if len(c.Competencies) > 0 {
+				total := 0
+				for _, comp := range c.Competencies {
+					total += comp.Score
+				}
+				c.AvgScore = math.Round(float64(total)/float64(len(c.Competencies))*10) / 10
+				c.Level, c.Grade = LevelFromScore(c.AvgScore)
+			}
+			s.candidates[i] = c
+			return s.save()
+		}
+	}
+	return fmt.Errorf("candidate %s not found", c.ID)
+}
+
 // CalculateStats computes stats for a set of candidates
 func CalculateStats(candidates []Candidate) Stats {
 	stats := Stats{Total: len(candidates)}

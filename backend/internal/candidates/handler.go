@@ -22,6 +22,7 @@ func NewHandler(dataPath string) *Handler {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/candidates", h.handleCandidates)
 	mux.HandleFunc("/api/candidates/add", h.handleAddCandidate)
+	mux.HandleFunc("/api/candidates/update", h.handleUpdateCandidate)
 	mux.HandleFunc("/api/candidates/delete", h.handleDeleteCandidate)
 	mux.HandleFunc("/api/candidates/conclusion", h.handleUpdateConclusion)
 }
@@ -91,6 +92,33 @@ func (h *Handler) handleAddCandidate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "id": c.ID})
+}
+
+func (h *Handler) handleUpdateCandidate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var c Candidate
+	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if c.ID == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.store.Update(c); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (h *Handler) handleDeleteCandidate(w http.ResponseWriter, r *http.Request) {

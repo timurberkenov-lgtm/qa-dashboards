@@ -474,7 +474,10 @@ function renderCandidatesTable(candidates) {
             <td><span class="task-status-badge ${resultClass}">${resultLabel}</span></td>
             <td><span class="editable-conclusion" onclick="editConclusion('${c.id}', this)" title="Нажмите для редактирования">${c.conclusion || '—'}</span></td>
             <td>
-                <button class="btn-icon btn-icon-danger" onclick="deleteCandidate('${c.id}','${c.name}')" title="Удалить"><i class="fas fa-trash"></i></button>
+                <div style="display:flex;gap:4px">
+                    <button class="btn-icon" onclick="editCandidate('${c.id}')" title="Редактировать"><i class="fas fa-pen"></i></button>
+                    <button class="btn-icon btn-icon-danger" onclick="deleteCandidate('${c.id}','${c.name}')" title="Удалить"><i class="fas fa-trash"></i></button>
+                </div>
             </td>
         </tr>`;
     }).join('');
@@ -482,6 +485,11 @@ function renderCandidatesTable(candidates) {
 
 function showAddCandidateForm() {
     document.getElementById('candidateFormOverlay').style.display = 'flex';
+    document.getElementById('cf_name').value = '';
+    document.getElementById('cf_date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('cf_result').value = 'rejected';
+    document.getElementById('cf_conclusion').value = '';
+    document.getElementById('cf_name').dataset.editId = '';
     const comps = document.getElementById('cf_competencies');
     comps.innerHTML = COMPETENCIES.map((name, i) => `
         <div class="form-comp-row">
@@ -490,7 +498,32 @@ function showAddCandidateForm() {
             <input type="text" placeholder="Комментарий" id="cf_comment_${i}" class="form-input" style="flex:1">
         </div>
     `).join('');
-    document.getElementById('cf_date').value = new Date().toISOString().slice(0, 10);
+}
+
+function editCandidate(id) {
+    const candidates = candidatesData?.candidates || [];
+    const c = candidates.find(x => x.id === id);
+    if (!c) return;
+
+    document.getElementById('candidateFormOverlay').style.display = 'flex';
+    document.getElementById('cf_name').value = c.name;
+    document.getElementById('cf_name').dataset.editId = c.id;
+    document.getElementById('cf_date').value = c.date ? c.date.slice(0, 10) : '';
+    document.getElementById('cf_result').value = c.result || 'rejected';
+    document.getElementById('cf_conclusion').value = c.conclusion || '';
+
+    const comps = document.getElementById('cf_competencies');
+    comps.innerHTML = COMPETENCIES.map((name, i) => {
+        const existing = (c.competencies || [])[i];
+        const score = existing ? existing.score : 1;
+        const comment = existing ? existing.comment : '';
+        return `
+        <div class="form-comp-row">
+            <span class="form-comp-name">${name}</span>
+            <input type="number" min="1" max="8" value="${score}" id="cf_score_${i}" class="form-input-sm">
+            <input type="text" placeholder="Комментарий" value="${comment}" id="cf_comment_${i}" class="form-input" style="flex:1">
+        </div>`;
+    }).join('');
 }
 
 function hideAddCandidateForm() { document.getElementById('candidateFormOverlay').style.display = 'none'; }
@@ -498,6 +531,7 @@ function hideAddCandidateForm() { document.getElementById('candidateFormOverlay'
 async function submitCandidate() {
     const name = document.getElementById('cf_name').value.trim();
     if (!name) { alert('Укажите ФИО'); return; }
+    const editId = document.getElementById('cf_name').dataset.editId;
     const date = document.getElementById('cf_date').value;
     const result = document.getElementById('cf_result').value;
     const conclusion = document.getElementById('cf_conclusion').value.trim();
@@ -507,8 +541,15 @@ async function submitCandidate() {
         comment: document.getElementById(`cf_comment_${i}`).value.trim()
     }));
     const body = { name, date: date + 'T00:00:00+05:00', result, conclusion, competencies };
+
+    let url = `${API_BASE}/api/candidates/add`;
+    if (editId) {
+        body.id = editId;
+        url = `${API_BASE}/api/candidates/update`;
+    }
+
     try {
-        const r = await fetch(`${API_BASE}/api/candidates/add`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (r.ok) { hideAddCandidateForm(); loadCandidates(); } else { alert('Ошибка сохранения'); }
     } catch(e) { alert('Ошибка: ' + e.message); }
 }
