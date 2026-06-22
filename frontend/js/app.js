@@ -254,7 +254,7 @@ function renderTasksTable(issues) {
         const d=getDays(i.updated||i.status_since);
         const statusLower = (i.status||'').toLowerCase();
         // Замечания только для активных статусов
-        const activeStatuses = ['открытый','на анализе','в работе','анализ'];
+        const activeStatuses = ['открытый','на анализе','в работе','анализ','analysis','analytics'];
         const isActive = activeStatuses.some(s => statusLower.includes(s));
         const dc = isActive ? (d>=10?'critical':d>=5?'warning':'ok') : 'ok';
         const c = [];
