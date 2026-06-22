@@ -1234,3 +1234,43 @@ body {
     border-color: var(--accent-blue);
     background: rgba(76, 141, 255, 0.05);
 }
+
+
+/* Status color classes */
+.task-status-badge.status-green { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); }
+.task-status-badge.status-blue { background: rgba(76, 141, 255, 0.15); color: var(--accent-blue); }
+.task-status-badge.status-red { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+.task-status-badge.status-orange { background: rgba(251, 146, 60, 0.15); color: var(--accent-orange); }
+.task-status-badge.status-gray { background: rgba(139, 143, 163, 0.15); color: var(--text-secondary); }
+.task-status-badge.status-purple { background: rgba(167, 139, 250, 0.15); color: var(--accent-purple); }
+
+/* Search input */
+.search-input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px 10px 36px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 220px;
+    transition: border-color 0.15s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.search-wrapper {
+    position: relative;
+}
+
+.search-wrapper i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 13px;
+}

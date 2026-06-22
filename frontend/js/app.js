@@ -235,7 +235,9 @@ function filterTasks() {
     if (!tasksData) return;
     let all = []; tasksData.forEach(d=>{(d.issues||[]).forEach(i=>{all.push({...i,employee:d.employee});});});
     const e=document.getElementById('tasksFilterEmployee').value, s=document.getElementById('tasksFilterStatus').value, t=document.getElementById('tasksFilterType').value;
+    const search = (document.getElementById('tasksSearch')?.value || '').toLowerCase();
     if(e!=='all')all=all.filter(i=>i.employee===e); if(s!=='all')all=all.filter(i=>i.status===s); if(t!=='all')all=all.filter(i=>i.type===t);
+    if(search) all=all.filter(i=>(i.key+' '+i.summary+' '+i.employee+' '+i.status+' '+i.type).toLowerCase().includes(search));
     renderTasksTable(all);
 }
 function renderTasksConclusion(data) {
@@ -248,9 +250,35 @@ function renderTasksConclusion(data) {
 function renderTasksTable(issues) {
     const tb = document.getElementById('tasksTableBody');
     if(!issues||!issues.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет задач</td></tr>';return;}
-    tb.innerHTML=issues.map(i=>{const d=getDays(i.updated||i.status_since);const dc=d>=10?'critical':d>=5?'warning':'ok';const sc=d>=5?'stale':'in-progress';const c=[];if(d>=5)c.push(`Зависла ${d}д`);
-    const createdDate = i.created ? new Date(i.created).toLocaleDateString('ru-RU') : '-';
-    return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td><span class="days-badge ${dc}">${d}д</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td></tr>`;}).join('');
+    tb.innerHTML=issues.map(i=>{
+        const d=getDays(i.updated||i.status_since);
+        const statusLower = (i.status||'').toLowerCase();
+        // Замечания только для активных статусов
+        const activeStatuses = ['открытый','на анализе','в работе','анализ'];
+        const isActive = activeStatuses.some(s => statusLower.includes(s));
+        const dc = isActive ? (d>=10?'critical':d>=5?'warning':'ok') : 'ok';
+        const c = [];
+        if (isActive && d>=5) c.push(`Зависла ${d}д`);
+        // Цвет статуса
+        const sc = getStatusColorClass(statusLower);
+        const createdDate = i.created ? new Date(i.created).toLocaleDateString('ru-RU') : '-';
+        return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td><span class="days-badge ${dc}">${isActive?d+'д':''}</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td></tr>`;
+    }).join('');
+}
+
+function getStatusColorClass(status) {
+    // Готово/Done/Выполнено/Ready for development — зелёный
+    if (status.includes('готово') || status.includes('done') || status.includes('выполнено') || status.includes('ready for development') || status.includes('resolved') || status.includes('закрыт') || status.includes('завершено')) return 'status-green';
+    // Анализ/В работе/Открытый — синий
+    if (status.includes('анализ') || status.includes('в работе') || status.includes('открыт') || status.includes('analysis') || status.includes('analytics') || status.includes('in progress')) return 'status-blue';
+    // Отмена — красный
+    if (status.includes('отмен') || status.includes('cancel') || status.includes('rejected')) return 'status-red';
+    // Backlog/Сделать — серый
+    if (status.includes('backlog') || status.includes('сделать') || status.includes('to do')) return 'status-gray';
+    // Blocked — оранжевый
+    if (status.includes('block')) return 'status-orange';
+    // Остальное — фиолетовый
+    return 'status-purple';
 }
 
 // === MERGE REQUESTS ===
@@ -280,7 +308,11 @@ function renderMRPage(data) {
 
     renderMRTable(all);
 }
-function filterMRs(){if(!mrData)return;let all=[];mrData.forEach(d=>{(d.mrs||[]).forEach(m=>{all.push({...m,employee:d.employee});});});const e=document.getElementById('mrFilterEmployee').value,s=document.getElementById('mrFilterState').value,p=document.getElementById('mrFilterPipeline').value;if(e!=='all')all=all.filter(m=>m.employee===e);if(s!=='all')all=all.filter(m=>m.state===s);if(p!=='all')all=all.filter(m=>m.pipeline_status===p);renderMRTable(all);}
+function filterMRs(){if(!mrData)return;let all=[];mrData.forEach(d=>{(d.mrs||[]).forEach(m=>{all.push({...m,employee:d.employee});});});const e=document.getElementById('mrFilterEmployee').value,s=document.getElementById('mrFilterState').value,p=document.getElementById('mrFilterPipeline').value;
+    const search = (document.getElementById('mrSearch')?.value || '').toLowerCase();
+    if(e!=='all')all=all.filter(m=>m.employee===e);if(s!=='all')all=all.filter(m=>m.state===s);if(p!=='all')all=all.filter(m=>m.pipeline_status===p);
+    if(search) all=all.filter(m=>(m.title+' '+m.employee+' '+(m.project||'')+' '+(m.source_branch||'')).toLowerCase().includes(search));
+    renderMRTable(all);}
 function renderMRTable(mrs){const tb=document.getElementById('mrTableBody');if(!mrs||!mrs.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет MR</td></tr>';return;}
 tb.innerHTML=mrs.map(m=>{const sl=m.state==='opened'?'Открыт':m.state==='merged'?'Merged':'Закрыт';const pl=pipLabel(m.pipeline_status);const pi=pipIcon(m.pipeline_status);const pc=m.pipeline_status||'pending';const dc=m.days_open>7?'critical':m.days_open>3?'warning':'ok';const rv=m.reviewers&&m.reviewers.length?`<div class="reviewers-list">${m.reviewers.map(r=>`<span class="reviewer-tag">${r}</span>`).join('')}</div>`:'<span class="no-reviewer">Нет</span>';
 return`<tr><td><a href="${m.url}" target="_blank" class="task-key">!${m.iid||m.id}</a></td><td style="font-size:12px">${m.employee}</td><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.title}</td><td style="font-size:11px;color:var(--text-secondary)">${m.project||m.source_branch}</td><td><span class="mr-state-badge ${m.state}">${sl}</span></td><td><span class="pipeline-badge ${pc}"><i class="fas ${pi}"></i> ${pl}</span></td><td><span class="days-badge ${dc}">${m.days_open}д</span></td><td>${rv}</td></tr>`;}).join('');}
@@ -319,7 +351,11 @@ function renderConfPage(data) {
 
     renderConfTable(all);
 }
-function filterConfluence(){if(!confData)return;let all=[];confData.forEach(d=>{(d.pages||[]).forEach(p=>{all.push({...p,employee:d.employee});});});const e=document.getElementById('confFilterEmployee').value,s=document.getElementById('confFilterSpace').value;if(e!=='all')all=all.filter(p=>p.employee===e);if(s!=='all')all=all.filter(p=>p.space===s);renderConfTable(all);}
+function filterConfluence(){if(!confData)return;let all=[];confData.forEach(d=>{(d.pages||[]).forEach(p=>{all.push({...p,employee:d.employee});});});const e=document.getElementById('confFilterEmployee').value,s=document.getElementById('confFilterSpace').value;
+    const search = (document.getElementById('confSearch')?.value || '').toLowerCase();
+    if(e!=='all')all=all.filter(p=>p.employee===e);if(s!=='all')all=all.filter(p=>p.space===s);
+    if(search) all=all.filter(p=>(p.title+' '+p.employee+' '+p.space+' '+(p.space_name||'')+' '+(p.changes||'')).toLowerCase().includes(search));
+    renderConfTable(all);}
 function renderConfTable(pages){const tb=document.getElementById('confTableBody');if(!pages||!pages.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет данных</td></tr>';return;}
 pages.sort((a,b)=>new Date(b.last_updated)-new Date(a.last_updated));
 tb.innerHTML=pages.map(p=>{const dt=p.last_updated?new Date(p.last_updated).toLocaleDateString('ru-RU'):'-';

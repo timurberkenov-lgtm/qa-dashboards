@@ -609,52 +609,5 @@
     "avg_score": 2,
     "level": "Junior+",
     "grade": 14
-  },
-  {
-    "id": "c_1782034448590201000",
-    "name": "Тест Тест",
-    "date": "2026-06-21T00:00:00+05:00",
-    "conclusion": "",
-    "result": "accepted",
-    "competencies": [
-      {
-        "name": "Способы интеграции систем",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Проектирование интеграций (SOAP, REST, gRPC, очереди)",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Описание ТЗ на разработку",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Проектирование БД (SQL, связи, индексы, нормализация)",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Синхронное/асинхронное взаимодействие",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Брокеры сообщений (Kafka/RabbitMQ)",
-        "score": 1,
-        "comment": ""
-      },
-      {
-        "name": "Разбор архитектуры (монолит/микросервис/SOA)",
-        "score": 1,
-        "comment": ""
-      }
-    ],
-    "avg_score": 1,
-    "level": "Junior",
-    "grade": 15
   }
 ]

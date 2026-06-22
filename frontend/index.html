@@ -150,6 +150,10 @@
                     <select class="filter-select" id="tasksFilterType" onchange="filterTasks()">
                         <option value="all">Все типы</option>
                     </select>
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="tasksSearch" placeholder="Поиск..." oninput="filterTasks()">
+                    </div>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="tasksTable">
@@ -196,6 +200,10 @@
                         <option value="failed">Упавший</option>
                         <option value="running">В процессе</option>
                     </select>
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="mrSearch" placeholder="Поиск..." oninput="filterMRs()">
+                    </div>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="mrTable">
@@ -233,6 +241,10 @@
                     <select class="filter-select" id="confFilterSpace" onchange="filterConfluence()">
                         <option value="all">Все пространства</option>
                     </select>
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="confSearch" placeholder="Поиск..." oninput="filterConfluence()">
+                    </div>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="confTable">
