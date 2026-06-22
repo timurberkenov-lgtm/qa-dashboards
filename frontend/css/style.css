@@ -70,18 +70,11 @@ body {
     color: var(--text-primary);
 }
 
-.forte-logo-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--accent-magenta);
+.forte-logo-img {
+    width: 34px;
+    height: 34px;
     border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 800;
-    color: white;
-    font-family: 'Inter', sans-serif;
+    object-fit: contain;
 }
 
 .sidebar-nav {
@@ -1319,4 +1312,83 @@ body {
     --text-muted: #8b8fa3;
     --border: #e0e2e9;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+
+/* Forte Magenta subtle accents */
+.page-header h1 {
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-magenta) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.sidebar-header {
+    border-bottom: 1px solid rgba(227, 28, 121, 0.15);
+}
+
+.section-title {
+    border-left: 3px solid var(--accent-magenta);
+    padding-left: 10px;
+}
+
+.data-table thead {
+    border-bottom: 2px solid rgba(227, 28, 121, 0.2);
+}
+
+.task-key {
+    color: var(--accent-magenta);
+}
+
+.task-key:hover {
+    color: var(--accent-magenta);
+    opacity: 0.8;
+}
+
+.gauge-svg circle:nth-child(2) {
+    filter: drop-shadow(0 0 3px rgba(227, 28, 121, 0.2));
+}
+
+.employee-avatar {
+    background: linear-gradient(135deg, var(--accent-magenta), var(--accent-purple));
+}
+
+.conclusion-banner {
+    border-left: 4px solid rgba(227, 28, 121, 0.4);
+}
+
+.conclusion-banner.has-issues {
+    border-left-color: var(--accent-orange);
+}
+
+.alerts-section {
+    border: 1px solid rgba(227, 28, 121, 0.15);
+    background: rgba(227, 28, 121, 0.02);
+}
+
+.alerts-header h3 {
+    color: var(--accent-magenta);
+}
+
+.btn-save {
+    background: var(--accent-magenta);
+}
+
+.editable-conclusion:hover {
+    border-color: var(--accent-magenta);
+    background: rgba(227, 28, 121, 0.05);
+}
+
+.btn-icon:hover {
+    color: var(--accent-magenta);
+    border-color: var(--accent-magenta);
+}
+
+.nav-item:hover {
+    background: rgba(227, 28, 121, 0.05);
+}
+
+.summary-icon.blue {
+    background: rgba(227, 28, 121, 0.1);
+    color: var(--accent-magenta);
 }
