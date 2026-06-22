@@ -36,7 +36,6 @@ body {
     line-height: 1.5;
 }
 
-/* Layout */
 .app-layout {
     display: flex;
     min-height: 100vh;
@@ -189,6 +188,10 @@ body {
     margin-left: var(--sidebar-width);
     padding: 28px 32px;
     min-height: 100vh;
+    background:
+        radial-gradient(ellipse at 80% 20%, rgba(227, 28, 121, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 80%, rgba(227, 28, 121, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.03) 0%, transparent 60%);
 }
 
 .page {
@@ -1312,6 +1315,13 @@ body {
     --text-muted: #8b8fa3;
     --border: #e0e2e9;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .main-content {
+    background:
+        radial-gradient(ellipse at 80% 20%, rgba(227, 28, 121, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 80%, rgba(227, 28, 121, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.02) 0%, transparent 60%);
 }
 
 
