@@ -14,6 +14,7 @@
     --accent-red: #f87171;
     --accent-teal: #2dd4bf;
     --accent-yellow: #fbbf24;
+    --accent-magenta: #E31C79;
     --border: #2d3040;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --radius: 12px;
@@ -69,9 +70,18 @@ body {
     color: var(--text-primary);
 }
 
-.sidebar-logo i {
-    color: var(--accent-blue);
-    font-size: 20px;
+.forte-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent-magenta);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: white;
+    font-family: 'Inter', sans-serif;
 }
 
 .sidebar-nav {
@@ -102,8 +112,8 @@ body {
 }
 
 .nav-item.active {
-    background: rgba(76, 141, 255, 0.1);
-    color: var(--accent-blue);
+    background: rgba(227, 28, 121, 0.1);
+    color: var(--accent-magenta);
 }
 
 .nav-item.active::before {
@@ -113,7 +123,7 @@ body {
     top: 8px;
     bottom: 8px;
     width: 3px;
-    background: var(--accent-blue);
+    background: var(--accent-magenta);
     border-radius: 0 3px 3px 0;
 }
 
@@ -125,7 +135,7 @@ body {
 
 .nav-badge {
     margin-left: auto;
-    background: var(--accent-blue);
+    background: var(--accent-magenta);
     color: white;
     font-size: 11px;
     font-weight: 600;
@@ -235,7 +245,7 @@ body {
 }
 
 .summary-card:hover {
-    border-color: var(--accent-blue);
+    border-color: var(--accent-magenta);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -368,7 +378,7 @@ body {
     transition: all 0.2s ease;
 }
 
-.employee-card:hover { border-color: var(--accent-blue); box-shadow: var(--shadow); }
+.employee-card:hover { border-color: var(--accent-magenta); box-shadow: var(--shadow); }
 .employee-card.has-alerts { border-color: rgba(248, 113, 113, 0.4); }
 
 .employee-header {
@@ -482,7 +492,7 @@ body {
     min-width: 160px;
 }
 
-.filter-select:focus { outline: none; border-color: var(--accent-blue); }
+.filter-select:focus { outline: none; border-color: var(--accent-magenta); }
 
 /* Data Table */
 .tasks-table-container {
@@ -1118,7 +1128,7 @@ body {
 
 .form-input:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-magenta);
 }
 
 .form-input-sm {
@@ -1259,7 +1269,7 @@ body {
 
 .search-input:focus {
     outline: none;
-    border-color: var(--accent-blue);
+    border-color: var(--accent-magenta);
 }
 
 .search-wrapper {
