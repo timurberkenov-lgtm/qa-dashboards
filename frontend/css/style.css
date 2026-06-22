@@ -1274,3 +1274,39 @@ body {
     color: var(--text-muted);
     font-size: 13px;
 }
+
+
+/* Theme toggle button */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+
+.theme-toggle:hover {
+    color: var(--accent-yellow);
+    border-color: var(--accent-yellow);
+}
+
+/* Light theme */
+[data-theme="light"] {
+    --bg-primary: #f5f6fa;
+    --bg-secondary: #ebedf3;
+    --bg-card: #ffffff;
+    --bg-hover: #f0f1f5;
+    --bg-sidebar: #ffffff;
+    --text-primary: #1a1d27;
+    --text-secondary: #5c6070;
+    --text-muted: #8b8fa3;
+    --border: #e0e2e9;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
