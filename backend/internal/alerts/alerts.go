@@ -2,6 +2,7 @@ package alerts
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/config"
@@ -16,6 +17,18 @@ func NewAlertEngine(cfg *config.Config) *AlertEngine {
 	return &AlertEngine{cfg: cfg}
 }
 
+// isActiveStatus checks if a task status should be monitored for alerts
+func isActiveStatus(status string) bool {
+	s := strings.ToLower(status)
+	activeStatuses := []string{"открытый", "на анализе", "в работе", "анализ", "analysis", "analytics"}
+	for _, active := range activeStatuses {
+		if strings.Contains(s, active) {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckAlerts generates alerts based on current task data
 func (a *AlertEngine) CheckAlerts(employee models.Employee, issues []models.JiraIssue, gitlab models.GitLabMetrics) []models.Alert {
 	var alerts []models.Alert
@@ -23,6 +36,11 @@ func (a *AlertEngine) CheckAlerts(employee models.Employee, issues []models.Jira
 	now := time.Now()
 
 	for _, issue := range issues {
+		// Only check active statuses
+		if !isActiveStatus(issue.Status) {
+			continue
+		}
+
 		// Check stale tasks (in same status > N days)
 		daysInStatus := int(now.Sub(issue.StatusSince).Hours() / 24)
 		if daysInStatus >= a.cfg.Alerts.StaleTaskDays {
