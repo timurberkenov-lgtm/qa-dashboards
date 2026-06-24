@@ -625,3 +625,92 @@ function updateThemeIcon(theme) {
     document.documentElement.setAttribute('data-theme', saved);
     document.addEventListener('DOMContentLoaded', () => updateThemeIcon(saved));
 })();
+
+// === TASKS EXPORT ===
+function showTasksExportDialog() {
+    const employees = tasksData ? tasksData.map(d => d.employee) : [];
+    const month = document.getElementById('tasksMonthFilter')?.value || '';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'candidate-form-overlay';
+    overlay.id = 'tasksExportOverlay';
+    overlay.innerHTML = `
+        <div class="candidate-form" style="width:420px">
+            <h3><i class="fas fa-file-excel" style="color:var(--accent-green)"></i> Экспорт задач в Excel</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Выберите сотрудников для выгрузки. Комментарии будут включены.</p>
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;color:var(--text-secondary)">Период:</label>
+                <select class="form-input" id="exportMonth" style="margin-top:4px">
+                    <option value="" ${!month?'selected':''}>Текущий месяц</option>
+                    <option value="all">За весь период</option>
+                    ${getMonthOptions().map(m => `<option value="${m.val}" ${m.val===month?'selected':''}>${m.label}</option>`).join('')}
+                </select>
+            </div>
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;color:var(--text-secondary)">Сотрудники:</label>
+                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                    ${employees.map(e => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-emp-cb" value="${e}" checked> ${e}</label>`).join('')}
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-save" onclick="executeTasksExport()"><i class="fas fa-download"></i> Выгрузить</button>
+                <button class="btn-cancel" onclick="document.getElementById('tasksExportOverlay').remove()">Отмена</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+async function executeTasksExport() {
+    const month = document.getElementById('exportMonth').value;
+    const checkboxes = document.querySelectorAll('.export-emp-cb:checked');
+    const employees = [...checkboxes].map(cb => cb.value).join(',');
+
+    if (!employees) { alert('Выберите хотя бы одного сотрудника'); return; }
+
+    // Show loading
+    const btn = document.querySelector('#tasksExportOverlay .btn-save');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+    btn.disabled = true;
+
+    try {
+        const url = `${API_BASE}/api/tasks/export?month=${month}&employees=${encodeURIComponent(employees)}`;
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error('Ошибка сервера');
+        const data = await resp.json();
+
+        // Build Excel
+        const rows = data.map(task => {
+            const commentsText = (task.comments || [])
+                .map(c => `[${c.created ? c.created.slice(0,10) : ''}] ${c.author}: ${c.body}`)
+                .join('\n---\n');
+            return {
+                'Ключ': task.key,
+                'Сотрудник': task.employee,
+                'Задача': task.summary,
+                'Тип': task.type,
+                'Статус': task.status,
+                'Проект': task.project,
+                'Дата создания': task.created,
+                'Дата обновления': task.updated,
+                'Ссылка': task.url,
+                'Комментарии': commentsText || '-'
+            };
+        });
+
+        if (!rows.length) { alert('Нет задач для выгрузки'); btn.innerHTML = '<i class="fas fa-download"></i> Выгрузить'; btn.disabled = false; return; }
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: k === 'Комментарии' ? 60 : k === 'Задача' ? 40 : k === 'Ссылка' ? 50 : 16 }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Задачи');
+        const filename = `tasks_${month || 'current'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+        XLSX.writeFile(wb, filename);
+
+        document.getElementById('tasksExportOverlay').remove();
+    } catch(e) {
+        alert('Ошибка: ' + e.message);
+        btn.innerHTML = '<i class="fas fa-download"></i> Выгрузить';
+        btn.disabled = false;
+    }
+}

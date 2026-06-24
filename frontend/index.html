@@ -157,6 +157,9 @@
                         <i class="fas fa-search"></i>
                         <input type="text" class="search-input" id="tasksSearch" placeholder="Поиск..." oninput="filterTasks()">
                     </div>
+                    <button class="btn-export" onclick="showTasksExportDialog()">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="tasksTable">

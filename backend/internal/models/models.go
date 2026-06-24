@@ -102,6 +102,13 @@ type JiraIssue struct {
 	URL          string    `json:"url"`
 }
 
+// JiraComment represents a comment on a Jira issue
+type JiraComment struct {
+	Author  string    `json:"author"`
+	Body    string    `json:"body"`
+	Created time.Time `json:"created"`
+}
+
 // MergeRequest represents a GitLab merge request with details
 type MergeRequest struct {
 	ID          int       `json:"id"`

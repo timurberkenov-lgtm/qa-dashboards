@@ -196,6 +196,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/dashboard", h.handleDashboard)
 	mux.HandleFunc("/api/alerts", h.handleAlerts)
 	mux.HandleFunc("/api/tasks", h.handleTasks)
+	mux.HandleFunc("/api/tasks/export", h.handleTasksExport)
 	mux.HandleFunc("/api/merge-requests", h.handleMergeRequests)
 	mux.HandleFunc("/api/confluence", h.handleConfluence)
 	mux.HandleFunc("/api/health", h.handleHealth)
@@ -414,6 +415,76 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) handleTasksExport(w http.ResponseWriter, r *http.Request) {
+	// Parse params: month, employee (comma-separated emails)
+	monthStart, monthEnd := getMonthRange(r)
+	employeeFilter := r.URL.Query().Get("employees") // comma-separated names
+
+	var until time.Time
+	if r.URL.Query().Get("month") != "all" {
+		until = monthEnd
+	}
+
+	type ExportIssue struct {
+		Key      string `json:"key"`
+		Employee string `json:"employee"`
+		Summary  string `json:"summary"`
+		Type     string `json:"type"`
+		Status   string `json:"status"`
+		Project  string `json:"project"`
+		Created  string `json:"created"`
+		Updated  string `json:"updated"`
+		URL      string `json:"url"`
+		Comments []models.JiraComment `json:"comments"`
+	}
+
+	var result []ExportIssue
+
+	for _, emp := range h.cfg.Employees {
+		// Filter by employee if specified
+		if employeeFilter != "" {
+			found := false
+			for _, name := range strings.Split(employeeFilter, ",") {
+				if strings.TrimSpace(name) == emp.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		issues, err := h.jira.GetEmployeeTasksRange(emp, monthStart, until)
+		if err != nil {
+			continue
+		}
+
+		for _, issue := range issues {
+			// Fetch comments for this issue
+			comments, _ := h.jira.GetIssueComments(issue.Key)
+
+			result = append(result, ExportIssue{
+				Key:      issue.Key,
+				Employee: emp.Name,
+				Summary:  issue.Summary,
+				Type:     issue.Type,
+				Status:   issue.Status,
+				Project:  issue.Project,
+				Created:  issue.Created.Format("2006-01-02"),
+				Updated:  issue.Updated.Format("2006-01-02"),
+				URL:      issue.URL,
+				Comments: comments,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-cache, no-store")
 	json.NewEncoder(w).Encode(result)
 }
 

@@ -197,3 +197,56 @@ type jiraProject struct {
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
+
+// GetIssueComments fetches comments for a specific Jira issue
+func (j *JiraCollector) GetIssueComments(issueKey string) ([]models.JiraComment, error) {
+	endpoint := fmt.Sprintf("%s/rest/api/2/issue/%s?fields=comment",
+		j.cfg.Jira.URL, issueKey)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+j.cfg.Jira.Token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := j.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("jira returned %d for comments on %s", resp.StatusCode, issueKey)
+	}
+
+	var result struct {
+		Fields struct {
+			Comment struct {
+				Comments []struct {
+					Author struct {
+						DisplayName string `json:"displayName"`
+					} `json:"author"`
+					Body    string `json:"body"`
+					Created string `json:"created"`
+				} `json:"comments"`
+			} `json:"comment"`
+		} `json:"fields"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	var comments []models.JiraComment
+	for _, c := range result.Fields.Comment.Comments {
+		created, _ := time.Parse("2006-01-02T15:04:05.000-0700", c.Created)
+		comments = append(comments, models.JiraComment{
+			Author:  c.Author.DisplayName,
+			Body:    c.Body,
+			Created: created,
+		})
+	}
+
+	return comments, nil
+}
