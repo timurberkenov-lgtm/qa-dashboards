@@ -84,20 +84,20 @@ func (j *JiraCollector) GetEmployeeTasksSince(employee models.Employee, since ti
 	return j.GetEmployeeTasksRange(employee, since, time.Time{})
 }
 
-// GetEmployeeTasksRange returns tasks created in a specific date range across ALL projects
+// GetEmployeeTasksRange returns tasks created OR updated in a specific date range across ALL projects
 func (j *JiraCollector) GetEmployeeTasksRange(employee models.Employee, since time.Time, until time.Time) ([]models.JiraIssue, error) {
 	sinceStr := since.Format("2006-01-02")
 
 	var dateFilter string
 	if until.IsZero() {
-		dateFilter = fmt.Sprintf(`created >= "%s"`, sinceStr)
+		dateFilter = fmt.Sprintf(`(created >= "%s" OR updated >= "%s")`, sinceStr, sinceStr)
 	} else {
 		untilStr := until.Format("2006-01-02")
-		dateFilter = fmt.Sprintf(`created >= "%s" AND created < "%s"`, sinceStr, untilStr)
+		dateFilter = fmt.Sprintf(`((created >= "%s" AND created < "%s") OR (updated >= "%s" AND updated < "%s"))`, sinceStr, untilStr, sinceStr, untilStr)
 	}
 
 	// Search across ALL projects where employee is assignee
-	jql := fmt.Sprintf(`assignee = "%s" AND %s ORDER BY created DESC`, employee.Email, dateFilter)
+	jql := fmt.Sprintf(`assignee = "%s" AND %s ORDER BY updated DESC`, employee.Email, dateFilter)
 	return j.searchIssues(jql)
 }
 

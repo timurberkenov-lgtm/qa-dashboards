@@ -249,7 +249,7 @@ function renderTasksConclusion(data) {
 }
 function renderTasksTable(issues) {
     const tb = document.getElementById('tasksTableBody');
-    if(!issues||!issues.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет задач</td></tr>';return;}
+    if(!issues||!issues.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет задач</td></tr>';return;}
     tb.innerHTML=issues.map(i=>{
         const d=getDays(i.updated||i.status_since);
         const statusLower = (i.status||'').toLowerCase();
@@ -262,7 +262,8 @@ function renderTasksTable(issues) {
         // Цвет статуса
         const sc = getStatusColorClass(statusLower);
         const createdDate = i.created ? new Date(i.created).toLocaleDateString('ru-RU') : '-';
-        return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td><span class="days-badge ${dc}">${isActive?d+'д':''}</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td></tr>`;
+        const updatedDate = i.updated ? new Date(i.updated).toLocaleDateString('ru-RU') : '-';
+        return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td style="font-size:12px">${updatedDate}</td><td><span class="days-badge ${dc}">${isActive?d+'д':''}</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td></tr>`;
     }).join('');
 }
 
