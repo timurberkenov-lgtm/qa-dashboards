@@ -660,19 +660,22 @@ function showTasksExportDialog() {
             </div>
             <div style="margin-bottom:14px">
                 <label style="font-size:12px;color:var(--text-secondary)">Сотрудники:</label>
-                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                <div style="margin-top:4px;margin-bottom:4px"><a href="#" onclick="toggleExportCheckboxes('.export-emp-cb', true);return false" style="font-size:11px;color:var(--accent-magenta);margin-right:10px">Выбрать все</a><a href="#" onclick="toggleExportCheckboxes('.export-emp-cb', false);return false" style="font-size:11px;color:var(--text-muted)">Сбросить</a></div>
+                <div style="display:flex;flex-direction:column;gap:6px">
                     ${employees.map(e => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-emp-cb" value="${e}" checked> ${e}</label>`).join('')}
                 </div>
             </div>
             <div style="margin-bottom:14px">
                 <label style="font-size:12px;color:var(--text-secondary)">Типы задач:</label>
-                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                <div style="margin-top:4px;margin-bottom:4px"><a href="#" onclick="toggleExportCheckboxes('.export-type-cb', true);return false" style="font-size:11px;color:var(--accent-magenta);margin-right:10px">Выбрать все</a><a href="#" onclick="toggleExportCheckboxes('.export-type-cb', false);return false" style="font-size:11px;color:var(--text-muted)">Сбросить</a></div>
+                <div style="display:flex;flex-direction:column;gap:6px">
                     ${[...types].map(t => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-type-cb" value="${t}" checked> ${t}</label>`).join('')}
                 </div>
             </div>
             <div style="margin-bottom:14px">
                 <label style="font-size:12px;color:var(--text-secondary)">Проекты:</label>
-                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto">
+                <div style="margin-top:4px;margin-bottom:4px"><a href="#" onclick="toggleExportCheckboxes('.export-project-cb', true);return false" style="font-size:11px;color:var(--accent-magenta);margin-right:10px">Выбрать все</a><a href="#" onclick="toggleExportCheckboxes('.export-project-cb', false);return false" style="font-size:11px;color:var(--text-muted)">Сбросить</a></div>
+                <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto">
                     ${[...projects].map(p => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-project-cb" value="${p}" checked> ${p}</label>`).join('')}
                 </div>
             </div>
@@ -772,4 +775,8 @@ async function loadTaskComments(key, btn) {
         btn.innerHTML = '<i class="fas fa-comment"></i>';
         alert('Ошибка загрузки комментариев');
     }
+}
+
+function toggleExportCheckboxes(selector, checked) {
+    document.querySelectorAll(selector).forEach(cb => cb.checked = checked);
 }
