@@ -197,6 +197,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/alerts", h.handleAlerts)
 	mux.HandleFunc("/api/tasks", h.handleTasks)
 	mux.HandleFunc("/api/tasks/export", h.handleTasksExport)
+	mux.HandleFunc("/api/tasks/comments", h.handleTaskComments)
 	mux.HandleFunc("/api/merge-requests", h.handleMergeRequests)
 	mux.HandleFunc("/api/confluence", h.handleConfluence)
 	mux.HandleFunc("/api/health", h.handleHealth)
@@ -416,6 +417,24 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) handleTaskComments(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		http.Error(w, "key is required", http.StatusBadRequest)
+		return
+	}
+
+	comments, err := h.jira.GetIssueComments(key)
+	if err != nil {
+		comments = []models.JiraComment{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-cache, no-store")
+	json.NewEncoder(w).Encode(comments)
 }
 
 func (h *Handler) handleTasksExport(w http.ResponseWriter, r *http.Request) {

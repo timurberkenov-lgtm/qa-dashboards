@@ -249,7 +249,7 @@ function renderTasksConclusion(data) {
 }
 function renderTasksTable(issues) {
     const tb = document.getElementById('tasksTableBody');
-    if(!issues||!issues.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет задач</td></tr>';return;}
+    if(!issues||!issues.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-secondary)">Нет задач</td></tr>';return;}
     tb.innerHTML=issues.map(i=>{
         const d=getDays(i.updated||i.status_since);
         const statusLower = (i.status||'').toLowerCase();
@@ -263,7 +263,7 @@ function renderTasksTable(issues) {
         const sc = getStatusColorClass(statusLower);
         const createdDate = i.created ? new Date(i.created).toLocaleDateString('ru-RU') : '-';
         const updatedDate = i.updated ? new Date(i.updated).toLocaleDateString('ru-RU') : '-';
-        return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td style="font-size:12px">${updatedDate}</td><td><span class="days-badge ${dc}">${isActive?d+'д':''}</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td></tr>`;
+        return`<tr><td><a href="${i.url}" target="_blank" class="task-key">${i.key}</a></td><td style="font-size:12px">${i.employee}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.summary}</td><td style="font-size:12px;color:var(--text-secondary)">${i.type}</td><td><span class="task-status-badge ${sc}">${i.status}</span></td><td style="font-size:12px">${createdDate}</td><td style="font-size:12px">${updatedDate}</td><td><span class="days-badge ${dc}">${isActive?d+'д':''}</span></td><td>${c.length?`<span class="task-comment"><i class="fas fa-exclamation-circle"></i> ${c.join('; ')}</span>`:''}</td><td><button class="btn-icon" onclick="loadTaskComments('${i.key}',this)" title="Комментарии"><i class="fas fa-comment"></i></button></td></tr>`;
     }).join('');
 }
 
@@ -631,13 +631,25 @@ function showTasksExportDialog() {
     const employees = tasksData ? tasksData.map(d => d.employee) : [];
     const month = document.getElementById('tasksMonthFilter')?.value || '';
 
+    // Collect types and projects from current data
+    const types = new Set();
+    const projects = new Set();
+    if (tasksData) {
+        tasksData.forEach(d => {
+            (d.issues || []).forEach(i => {
+                types.add(i.type);
+                projects.add(i.project);
+            });
+        });
+    }
+
     const overlay = document.createElement('div');
     overlay.className = 'candidate-form-overlay';
     overlay.id = 'tasksExportOverlay';
     overlay.innerHTML = `
-        <div class="candidate-form" style="width:420px">
+        <div class="candidate-form" style="width:480px;max-height:80vh;overflow-y:auto">
             <h3><i class="fas fa-file-excel" style="color:var(--accent-green)"></i> Экспорт задач в Excel</h3>
-            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Выберите сотрудников для выгрузки. Комментарии будут включены.</p>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Комментарии будут включены в выгрузку.</p>
             <div style="margin-bottom:14px">
                 <label style="font-size:12px;color:var(--text-secondary)">Период:</label>
                 <select class="form-input" id="exportMonth" style="margin-top:4px">
@@ -650,6 +662,18 @@ function showTasksExportDialog() {
                 <label style="font-size:12px;color:var(--text-secondary)">Сотрудники:</label>
                 <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
                     ${employees.map(e => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-emp-cb" value="${e}" checked> ${e}</label>`).join('')}
+                </div>
+            </div>
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;color:var(--text-secondary)">Типы задач:</label>
+                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+                    ${[...types].map(t => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-type-cb" value="${t}" checked> ${t}</label>`).join('')}
+                </div>
+            </div>
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;color:var(--text-secondary)">Проекты:</label>
+                <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto">
+                    ${[...projects].map(p => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="export-project-cb" value="${p}" checked> ${p}</label>`).join('')}
                 </div>
             </div>
             <div class="form-actions">
@@ -665,10 +689,11 @@ async function executeTasksExport() {
     const month = document.getElementById('exportMonth').value;
     const checkboxes = document.querySelectorAll('.export-emp-cb:checked');
     const employees = [...checkboxes].map(cb => cb.value).join(',');
+    const selectedTypes = new Set([...document.querySelectorAll('.export-type-cb:checked')].map(cb => cb.value));
+    const selectedProjects = new Set([...document.querySelectorAll('.export-project-cb:checked')].map(cb => cb.value));
 
     if (!employees) { alert('Выберите хотя бы одного сотрудника'); return; }
 
-    // Show loading
     const btn = document.querySelector('#tasksExportOverlay .btn-save');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
     btn.disabled = true;
@@ -677,9 +702,11 @@ async function executeTasksExport() {
         const url = `${API_BASE}/api/tasks/export?month=${month}&employees=${encodeURIComponent(employees)}`;
         const resp = await fetch(url, { cache: 'no-store' });
         if (!resp.ok) throw new Error('Ошибка сервера');
-        const data = await resp.json();
+        let data = await resp.json();
 
-        // Build Excel
+        // Filter by type and project on client side
+        data = data.filter(task => selectedTypes.has(task.type) && selectedProjects.has(task.project));
+
         const rows = data.map(task => {
             const commentsText = (task.comments || [])
                 .map(c => `[${c.created ? c.created.slice(0,10) : ''}] ${c.author}: ${c.body}`)
@@ -712,5 +739,37 @@ async function executeTasksExport() {
         alert('Ошибка: ' + e.message);
         btn.innerHTML = '<i class="fas fa-download"></i> Выгрузить';
         btn.disabled = false;
+    }
+}
+
+// === TASK COMMENTS (by click) ===
+async function loadTaskComments(key, btn) {
+    const row = btn.closest('tr');
+    // Check if already expanded
+    const nextRow = row.nextElementSibling;
+    if (nextRow && nextRow.classList.contains('comments-row')) {
+        nextRow.remove();
+        return;
+    }
+    // Show loading
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const commResp = await fetch(`${API_BASE}/api/tasks/comments?key=${key}`, { cache: 'no-store' });
+        if (!commResp.ok) throw new Error('Failed');
+        const comments = await commResp.json();
+        btn.innerHTML = '<i class="fas fa-comment"></i>';
+
+        const commRow = document.createElement('tr');
+        commRow.className = 'comments-row';
+        if (!comments || !comments.length) {
+            commRow.innerHTML = `<td colspan="10" style="padding:12px 20px;font-size:12px;color:var(--text-muted);background:var(--bg-secondary)">Нет комментариев</td>`;
+        } else {
+            const html = comments.map(c => `<div style="margin-bottom:8px;padding:6px 0;border-bottom:1px solid var(--border)"><strong style="color:var(--accent-magenta)">${c.author}</strong> <span style="color:var(--text-muted);font-size:11px">${c.created?new Date(c.created).toLocaleDateString('ru-RU'):''}</span><div style="margin-top:4px;white-space:pre-wrap">${c.body}</div></div>`).join('');
+            commRow.innerHTML = `<td colspan="10" style="padding:12px 20px;font-size:12px;background:var(--bg-secondary);max-height:200px;overflow-y:auto">${html}</td>`;
+        }
+        row.after(commRow);
+    } catch(e) {
+        btn.innerHTML = '<i class="fas fa-comment"></i>';
+        alert('Ошибка загрузки комментариев');
     }
 }
