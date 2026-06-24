@@ -264,7 +264,10 @@ func (h *Handler) handleDashboardFiltered(w http.ResponseWriter, r *http.Request
 			status := strings.ToLower(issue.Status)
 			if isCompletedStatus(status) {
 				ed.Tasks.CompletedMonth++
-			} else {
+			}
+			// "Активные" — только User Story/userStoryDomain в статусе В работе/На анализе/Analysis
+			typeLower := strings.ToLower(issue.Type)
+			if (typeLower == "user story" || typeLower == "userstorydomain") && isActiveWorkStatus(status) {
 				ed.Tasks.ActiveTasks++
 			}
 			days := int(now.Sub(issue.StatusSince).Hours() / 24)
@@ -704,6 +707,14 @@ func countMRMetrics(mrs []models.MergeRequest) models.GitLabMetrics {
 
 // helper for unused import
 var _ = strconv.Itoa
+
+// isActiveWorkStatus checks if a status is "В работе", "На анализе", or "Analysis"
+func isActiveWorkStatus(status string) bool {
+	return strings.Contains(status, "в работе") ||
+		strings.Contains(status, "на анализе") ||
+		status == "analysis" ||
+		status == "analytics"
+}
 
 // isCompletedStatus checks if a lowercased status name indicates completion
 func isCompletedStatus(status string) bool {
