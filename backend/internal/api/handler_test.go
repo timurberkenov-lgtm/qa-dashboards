@@ -91,7 +91,7 @@ func TestGenerateTasksConclusion_NoIssues(t *testing.T) {
 	issues := []models.JiraIssue{}
 	metrics := models.TaskMetrics{ActiveTasks: 3, CompletedMonth: 5}
 
-	result := generateTasksConclusion("Test User", issues, metrics)
+	result := generateTasksConclusion("Test User", issues, metrics, "")
 
 	if result != "Задачи обрабатываются в нормальном режиме. Замечаний нет." {
 		t.Errorf("Expected no issues conclusion, got: %s", result)
@@ -107,7 +107,7 @@ func TestGenerateTasksConclusion_WithStale(t *testing.T) {
 	}
 	metrics := models.TaskMetrics{ActiveTasks: 3, CompletedMonth: 0}
 
-	result := generateTasksConclusion("Test User", issues, metrics)
+	result := generateTasksConclusion("Test User", issues, metrics, "")
 
 	if result == "Задачи обрабатываются в нормальном режиме. Замечаний нет." {
 		t.Errorf("Expected issues in conclusion, got: %s", result)
@@ -118,7 +118,7 @@ func TestGenerateTasksConclusion_HighLoad(t *testing.T) {
 	issues := []models.JiraIssue{}
 	metrics := models.TaskMetrics{ActiveTasks: 15, CompletedMonth: 2}
 
-	result := generateTasksConclusion("Test User", issues, metrics)
+	result := generateTasksConclusion("Test User", issues, metrics, "")
 
 	if result == "Задачи обрабатываются в нормальном режиме. Замечаний нет." {
 		t.Errorf("Expected overload warning, got: %s", result)
@@ -131,7 +131,7 @@ func TestGenerateMRConclusion_AllGood(t *testing.T) {
 	}
 	metrics := countMRMetrics(mrs)
 
-	result := generateMRConclusion("Test User", mrs, metrics)
+	result := generateMRConclusion("Test User", mrs, metrics, "")
 
 	if result != "Всё в порядке. MR обрабатываются в нормальном режиме." {
 		t.Errorf("Expected all good, got: %s", result)
@@ -145,7 +145,7 @@ func TestGenerateMRConclusion_LongOpen(t *testing.T) {
 	}
 	metrics := countMRMetrics(mrs)
 
-	result := generateMRConclusion("Test User", mrs, metrics)
+	result := generateMRConclusion("Test User", mrs, metrics, "")
 
 	if result == "Всё в порядке. MR обрабатываются в нормальном режиме." {
 		t.Errorf("Expected issues, got all good")
@@ -156,7 +156,7 @@ func TestGenerateConfluenceConclusion_NoActivity(t *testing.T) {
 	pages := []models.ConfluencePage{}
 	metrics := models.ConfluenceMetrics{QualityScore: 20}
 
-	result := generateConfluenceConclusion("Test User", pages, metrics)
+	result := generateConfluenceConclusion("Test User", pages, metrics, "")
 
 	if result == "Документация ведётся активно. Замечаний нет." {
 		t.Errorf("Expected no activity warning, got all good")
@@ -170,7 +170,7 @@ func TestGenerateConfluenceConclusion_Active(t *testing.T) {
 	}
 	metrics := models.ConfluenceMetrics{QualityScore: 90, PagesCreatedMonth: 5}
 
-	result := generateConfluenceConclusion("Test User", pages, metrics)
+	result := generateConfluenceConclusion("Test User", pages, metrics, "")
 
 	if result != "Документация ведётся активно. Замечаний нет." {
 		t.Errorf("Expected all good, got: %s", result)

@@ -22,27 +22,31 @@
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
                     <i class="fas fa-home"></i>
-                    <span>Главная</span>
+                    <span data-i18n="nav.home">Главная</span>
                 </a>
                 <a href="#" class="nav-item" data-page="tasks" onclick="navigateTo('tasks')">
                     <i class="fas fa-tasks"></i>
-                    <span>Задачи Jira</span>
+                    <span data-i18n="nav.tasks">Задачи Jira</span>
                 </a>
                 <a href="#" class="nav-item" data-page="merge-requests" onclick="navigateTo('merge-requests')">
                     <i class="fas fa-code-branch"></i>
-                    <span>Merge Requests</span>
+                    <span data-i18n="nav.mr">Merge Requests</span>
                 </a>
                 <a href="#" class="nav-item" data-page="confluence" onclick="navigateTo('confluence')">
                     <i class="fas fa-file-alt"></i>
-                    <span>Документация</span>
+                    <span data-i18n="nav.docs">Документация</span>
                 </a>
                 <a href="#" class="nav-item" data-page="candidates" onclick="navigateTo('candidates')">
                     <i class="fas fa-user-tie"></i>
-                    <span>Собеседования</span>
+                    <span data-i18n="nav.interviews">Собеседования</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <button class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                <select class="lang-select" id="langSelect" onchange="switchLanguage(this.value)">
+                    <option value="ru">RU</option>
+                    <option value="en">EN</option>
+                </select>
+                <button class="theme-toggle" onclick="toggleTheme()" data-i18n-title="theme.toggle" title="Переключить тему">
                     <i class="fas fa-moon" id="themeIcon"></i>
                 </button>
                 <div class="status-indicator" id="connectionStatus">
@@ -61,101 +65,117 @@
             <!-- Page: Dashboard -->
             <div class="page" id="page-dashboard">
                 <div class="page-header">
-                    <h1>Обзор команды</h1>
-                    <span class="page-subtitle">Системные аналитики | ForteBank</span>
+                    <h1 data-i18n="dashboard.title">Обзор команды</h1>
+                    <span class="page-subtitle" data-i18n="dashboard.subtitle">Системные аналитики | ForteBank</span>
                 </div>
 
-                <div class="filters-bar">
-                    <select class="filter-select" id="dashboardMonthFilter"></select>
+                <!-- Tabs -->
+                <div class="dashboard-tabs">
+                    <button class="dash-tab active" data-tab="overview" onclick="switchDashTab('overview')"><i class="fas fa-chart-pie"></i> Обзор</button>
+                    <button class="dash-tab" data-tab="workload" onclick="switchDashTab('workload')"><i class="fas fa-user-clock"></i> Загруженность</button>
                 </div>
 
-                <!-- Gauges -->
-                <section id="gaugesSection"></section>
+                <!-- Tab: Overview -->
+                <div class="dash-tab-content" id="dashTabOverview">
+                    <div class="filters-bar">
+                        <select class="filter-select" id="dashboardMonthFilter"></select>
+                    </div>
 
-                <!-- Summary Cards -->
-                <section class="summary-section">
-                    <div class="summary-card">
-                        <div class="summary-icon blue"><i class="fas fa-tasks"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalActive">-</span>
-                            <span class="summary-label">Активные задачи</span>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon green"><i class="fas fa-check-circle"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalCompleted">-</span>
-                            <span class="summary-label">Выполнено</span>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon orange"><i class="fas fa-code-branch"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalMRs">-</span>
-                            <span class="summary-label">Merge Requests</span>
-                        </div>
-                    </div>
-                    <div class="summary-card" id="alertsSummaryCard">
-                        <div class="summary-icon red"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="summary-content">
-                            <span class="summary-value" id="totalAlerts">-</span>
-                            <span class="summary-label">Алерты</span>
-                        </div>
-                    </div>
-                </section>
+                    <!-- Gauges -->
+                    <section id="gaugesSection"></section>
 
-                <!-- Dashboard Conclusion -->
-                <div class="conclusion-banner" id="dashboardConclusion" style="display:none;"></div>
-
-                <!-- Alerts -->
-                <section class="alerts-section" id="alertsSection" style="display:none;">
-                    <div class="alerts-header">
-                        <h3><i class="fas fa-bell"></i> Активные алерты</h3>
-                        <div class="alerts-header-actions">
-                            <button class="btn-export" onclick="exportAlertsToExcel()" title="Экспорт в Excel">
-                                <i class="fas fa-file-excel"></i> Excel
-                            </button>
-                            <button class="btn-collapse" onclick="toggleAlerts()">
-                                <i class="fas fa-chevron-down" id="alertsToggleIcon"></i>
-                            </button>
+                    <!-- Summary Cards -->
+                    <section class="summary-section">
+                        <div class="summary-card">
+                            <div class="summary-icon blue"><i class="fas fa-tasks"></i></div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="totalActive">-</span>
+                                <span class="summary-label" data-i18n="dashboard.active_tasks">Активные задачи</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="alerts-list" id="alertsList"></div>
-                </section>
-
-                <!-- Employee Cards -->
-                <section class="employees-section">
-                    <h2 class="section-title">Сотрудники</h2>
-                    <div class="employees-grid" id="employeesGrid">
-                        <div class="loading-state">
-                            <div class="spinner"></div>
-                            <p>Загрузка данных...</p>
+                        <div class="summary-card">
+                            <div class="summary-icon green"><i class="fas fa-check-circle"></i></div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="totalCompleted">-</span>
+                                <span class="summary-label" data-i18n="dashboard.completed">Выполнено</span>
+                            </div>
                         </div>
+                        <div class="summary-card">
+                            <div class="summary-icon orange"><i class="fas fa-code-branch"></i></div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="totalMRs">-</span>
+                                <span class="summary-label" data-i18n="dashboard.merge_requests">Merge Requests</span>
+                            </div>
+                        </div>
+                        <div class="summary-card" id="alertsSummaryCard">
+                            <div class="summary-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                            <div class="summary-content">
+                                <span class="summary-value" id="totalAlerts">-</span>
+                                <span class="summary-label" data-i18n="dashboard.alerts">Алерты</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Dashboard Conclusion -->
+                    <div class="conclusion-banner" id="dashboardConclusion" style="display:none;"></div>
+
+                    <!-- Alerts -->
+                    <section class="alerts-section" id="alertsSection" style="display:none;">
+                        <div class="alerts-header">
+                            <h3><i class="fas fa-bell"></i> <span data-i18n="alerts.title">Активные алерты</span></h3>
+                            <div class="alerts-header-actions">
+                                <button class="btn-export" onclick="exportAlertsToExcel()" title="Export to Excel">
+                                    <i class="fas fa-file-excel"></i> <span data-i18n="alerts.export_excel">Excel</span>
+                                </button>
+                                <button class="btn-collapse" onclick="toggleAlerts()">
+                                    <i class="fas fa-chevron-down" id="alertsToggleIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alerts-list" id="alertsList"></div>
+                    </section>
+
+                    <!-- Employee Cards -->
+                    <section class="employees-section">
+                        <h2 class="section-title" data-i18n="dashboard.employees">Сотрудники</h2>
+                        <div class="employees-grid" id="employeesGrid">
+                            <div class="loading-state">
+                                <div class="spinner"></div>
+                                <p data-i18n="dashboard.loading">Загрузка данных...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tab: Workload -->
+                <div class="dash-tab-content hidden" id="dashTabWorkload">
+                    <div class="filters-bar">
+                        <select class="filter-select" id="workloadMonthFilter"></select>
+                        <button class="btn-export" onclick="forceRecalcWorkload()" title="Принудительный пересчёт">
+                            <i class="fas fa-redo"></i> Пересчитать
+                        </button>
                     </div>
-                </section>
+                    <div id="workloadContent">
+                        <div class="loading-state"><div class="spinner"></div><p>Загрузка...</p></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Page: Tasks -->
             <div class="page hidden" id="page-tasks">
                 <div class="page-header">
-                    <h1>Задачи Jira</h1>
-                    <span class="page-subtitle">Детали по задачам сотрудников</span>
+                    <h1 data-i18n="tasks.title">Задачи Jira</h1>
+                    <span class="page-subtitle" data-i18n="tasks.subtitle">Детали по задачам сотрудников</span>
                 </div>
                 <div class="conclusion-banner" id="tasksConclusion" style="display:none;"></div>
                 <div class="filters-bar">
                     <select class="filter-select" id="tasksMonthFilter"></select>
-                    <select class="filter-select" id="tasksFilterEmployee" onchange="filterTasks()">
-                        <option value="all">Все сотрудники</option>
-                    </select>
-                    <select class="filter-select" id="tasksFilterStatus" onchange="filterTasks()">
-                        <option value="all">Все статусы</option>
-                    </select>
-                    <select class="filter-select" id="tasksFilterType" onchange="filterTasks()">
-                        <option value="all">Все типы</option>
-                    </select>
+                    <div class="multi-select" id="tasksFilterEmployee" data-placeholder="All Employees"></div>
+                    <div class="multi-select" id="tasksFilterStatus" data-placeholder="All Statuses"></div>
+                    <div class="multi-select" id="tasksFilterType" data-placeholder="All Types"></div>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="tasksSearch" placeholder="Поиск..." oninput="filterTasks()">
+                        <input type="text" class="search-input" id="tasksSearch" data-i18n-placeholder="tasks.search" placeholder="Поиск..." oninput="filterTasks()">
                     </div>
                     <button class="btn-export" onclick="showTasksExportDialog()">
                         <i class="fas fa-file-excel"></i> Excel
@@ -165,15 +185,15 @@
                     <table class="data-table" id="tasksTable">
                         <thead>
                             <tr>
-                                <th>Ключ</th>
-                                <th>Сотрудник</th>
-                                <th>Задача</th>
-                                <th>Тип</th>
-                                <th>Статус</th>
-                                <th>Дата создания</th>
-                                <th>Дата обновления</th>
-                                <th>Дней в статусе</th>
-                                <th>Замечания</th>
+                                <th data-i18n="tasks.th.key">Ключ</th>
+                                <th data-i18n="tasks.th.employee">Сотрудник</th>
+                                <th data-i18n="tasks.th.task">Задача</th>
+                                <th data-i18n="tasks.th.type">Тип</th>
+                                <th data-i18n="tasks.th.status">Статус</th>
+                                <th data-i18n="tasks.th.created">Дата создания</th>
+                                <th data-i18n="tasks.th.updated">Дата обновления</th>
+                                <th data-i18n="tasks.th.days_in_status">Дней в статусе</th>
+                                <th data-i18n="tasks.th.remarks">Замечания</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -187,49 +207,53 @@
             <!-- Page: Merge Requests -->
             <div class="page hidden" id="page-merge-requests">
                 <div class="page-header">
-                    <h1>Merge Requests</h1>
-                    <span class="page-subtitle">GitLab активность команды</span>
+                    <h1 data-i18n="mr.title">Merge Requests</h1>
+                    <span class="page-subtitle" data-i18n="mr.subtitle">GitLab активность команды</span>
                 </div>
                 <div class="conclusion-banner" id="mrConclusion" style="display:none;"></div>
                 <div class="filters-bar">
                     <select class="filter-select" id="mrMonthFilter"></select>
                     <select class="filter-select" id="mrFilterEmployee" onchange="filterMRs()">
-                        <option value="all">Все сотрудники</option>
+                        <option value="all" data-i18n="mr.all_employees">Все сотрудники</option>
                     </select>
                     <select class="filter-select" id="mrFilterState" onchange="filterMRs()">
-                        <option value="all">Все статусы</option>
-                        <option value="opened">Открытые</option>
-                        <option value="merged">Merged</option>
-                        <option value="closed">Закрытые</option>
+                        <option value="all" data-i18n="mr.all_states">Все статусы</option>
+                        <option value="opened" data-i18n="mr.state_opened">Open</option>
+                        <option value="merged" data-i18n="mr.state_merged">Merged</option>
+                        <option value="closed" data-i18n="mr.state_closed">Closed</option>
                     </select>
                     <select class="filter-select" id="mrFilterPipeline" onchange="filterMRs()">
-                        <option value="all">Pipeline: все</option>
-                        <option value="success">Успешный</option>
-                        <option value="failed">Упавший</option>
-                        <option value="running">В процессе</option>
+                        <option value="all" data-i18n="mr.pipeline_all">Pipeline: все</option>
+                        <option value="success" data-i18n="mr.pipeline_success">Успешный</option>
+                        <option value="failed" data-i18n="mr.pipeline_failed">Упавший</option>
+                        <option value="running" data-i18n="mr.pipeline_running">В процессе</option>
                     </select>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="mrSearch" placeholder="Поиск..." oninput="filterMRs()">
+                        <input type="text" class="search-input" id="mrSearch" data-i18n-placeholder="mr.search" placeholder="Поиск..." oninput="filterMRs()">
                     </div>
+                    <button class="btn-export" onclick="showMRUsersDialog()" title="Manage tracked users">
+                        <i class="fas fa-user-plus"></i> Users
+                    </button>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="mrTable">
                         <thead>
                             <tr>
-                                <th>MR</th>
-                                <th>Сотрудник</th>
-                                <th>Название</th>
-                                <th>Проект</th>
-                                <th>Статус</th>
-                                <th>Pipeline</th>
-                                <th>Дата создания</th>
-                                <th>Дней</th>
-                                <th>Ревьюеры</th>
+                                <th data-i18n="mr.th.mr">MR</th>
+                                <th data-i18n="mr.th.employee">Сотрудник</th>
+                                <th data-i18n="mr.th.title">Название</th>
+                                <th data-i18n="mr.th.project">Проект</th>
+                                <th data-i18n="mr.th.status">Статус</th>
+                                <th data-i18n="mr.th.pipeline">Pipeline</th>
+                                <th data-i18n="mr.th.created">Дата создания</th>
+                                <th data-i18n="mr.th.days">Дней</th>
+                                <th data-i18n="mr.th.reviewers">Ревьюеры</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody id="mrTableBody">
-                            <tr><td colspan="9" class="loading-cell"><div class="spinner"></div></td></tr>
+                            <tr><td colspan="10" class="loading-cell"><div class="spinner"></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -238,33 +262,33 @@
             <!-- Page: Confluence -->
             <div class="page hidden" id="page-confluence">
                 <div class="page-header">
-                    <h1>Документация Confluence</h1>
-                    <span class="page-subtitle">Активность и качество документации</span>
+                    <h1 data-i18n="conf.title">Документация Confluence</h1>
+                    <span class="page-subtitle" data-i18n="conf.subtitle">Активность и качество документации</span>
                 </div>
                 <div class="conclusion-banner" id="confConclusion" style="display:none;"></div>
                 <div class="filters-bar">
                     <select class="filter-select" id="confMonthFilter"></select>
                     <select class="filter-select" id="confFilterEmployee" onchange="filterConfluence()">
-                        <option value="all">Все сотрудники</option>
+                        <option value="all" data-i18n="conf.all_employees">Все сотрудники</option>
                     </select>
                     <select class="filter-select" id="confFilterSpace" onchange="filterConfluence()">
-                        <option value="all">Все пространства</option>
+                        <option value="all" data-i18n="conf.all_spaces">Все пространства</option>
                     </select>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="confSearch" placeholder="Поиск..." oninput="filterConfluence()">
+                        <input type="text" class="search-input" id="confSearch" data-i18n-placeholder="conf.search" placeholder="Поиск..." oninput="filterConfluence()">
                     </div>
                 </div>
                 <div class="tasks-table-container">
                     <table class="data-table" id="confTable">
                         <thead>
                             <tr>
-                                <th>Страница</th>
-                                <th>Сотрудник</th>
-                                <th>Пространство</th>
-                                <th>Версия</th>
-                                <th>Обновлено</th>
-                                <th>Изменения</th>
+                                <th data-i18n="conf.th.page">Страница</th>
+                                <th data-i18n="conf.th.employee">Сотрудник</th>
+                                <th data-i18n="conf.th.space">Пространство</th>
+                                <th data-i18n="conf.th.version">Версия</th>
+                                <th data-i18n="conf.th.updated">Обновлено</th>
+                                <th data-i18n="conf.th.changes">Изменения</th>
                             </tr>
                         </thead>
                         <tbody id="confTableBody">
@@ -276,24 +300,24 @@
             <!-- Page: Candidates -->
             <div class="page hidden" id="page-candidates">
                 <div class="page-header">
-                    <h1>Собеседования</h1>
-                    <span class="page-subtitle">Подбор кандидатов — Системные аналитики</span>
+                    <h1 data-i18n="cand.title">Собеседования</h1>
+                    <span class="page-subtitle" data-i18n="cand.subtitle">Подбор кандидатов — Системные аналитики</span>
                 </div>
                 <div class="filters-bar">
                     <select class="filter-select" id="candidatesMonthFilter"></select>
                     <select class="filter-select" id="candidatesResultFilter" onchange="filterCandidates()">
-                        <option value="all">Все результаты</option>
-                        <option value="accepted">Принят</option>
-                        <option value="rejected">Отклонён</option>
-                        <option value="accepted_no_sb">Не прошёл СБ</option>
-                        <option value="pending">В ожидании</option>
+                        <option value="all" data-i18n="cand.all_results">Все результаты</option>
+                        <option value="accepted" data-i18n="cand.result_accepted">Принят</option>
+                        <option value="rejected" data-i18n="cand.result_rejected">Отклонён</option>
+                        <option value="accepted_no_sb" data-i18n="cand.result_no_sb">Не прошёл СБ</option>
+                        <option value="pending" data-i18n="cand.result_pending">В ожидании</option>
                     </select>
                     <div class="search-wrapper">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="search-input" id="candidatesSearch" placeholder="Поиск..." oninput="filterCandidates()">
+                        <input type="text" class="search-input" id="candidatesSearch" data-i18n-placeholder="cand.search" placeholder="Поиск..." oninput="filterCandidates()">
                     </div>
                     <button class="btn-export" onclick="showAddCandidateForm()">
-                        <i class="fas fa-plus"></i> Добавить
+                        <i class="fas fa-plus"></i> <span data-i18n="cand.add">Добавить</span>
                     </button>
                     <button class="btn-export" onclick="exportCandidatesToExcel()">
                         <i class="fas fa-file-excel"></i> Excel
@@ -311,17 +335,17 @@
                     <table class="data-table" id="candidatesTable">
                         <thead>
                             <tr>
-                                <th>Кандидат</th>
-                                <th>Дата</th>
-                                <th>Балл</th>
-                                <th>Уровень</th>
-                                <th>Результат</th>
-                                <th>Заключение</th>
+                                <th data-i18n="cand.th.candidate">Кандидат</th>
+                                <th data-i18n="cand.th.date">Дата</th>
+                                <th data-i18n="cand.th.score">Балл</th>
+                                <th data-i18n="cand.th.level">Уровень</th>
+                                <th data-i18n="cand.th.result">Результат</th>
+                                <th data-i18n="cand.th.conclusion">Заключение</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody id="candidatesTableBody">
-                            <tr><td colspan="6" class="loading-cell"><div class="spinner"></div></td></tr>
+                            <tr><td colspan="7" class="loading-cell"><div class="spinner"></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -329,26 +353,26 @@
                 <!-- Add Form (hidden by default) -->
                 <div class="candidate-form-overlay" id="candidateFormOverlay" style="display:none;">
                     <div class="candidate-form">
-                        <h3><i class="fas fa-user-plus"></i> Новый кандидат</h3>
+                        <h3><i class="fas fa-user-plus"></i> <span data-i18n="cand.form.title">Новый кандидат</span></h3>
                         <div class="form-row">
-                            <input type="text" id="cf_name" placeholder="ФИО кандидата" class="form-input">
+                            <input type="text" id="cf_name" data-i18n-placeholder="cand.form.name" placeholder="ФИО кандидата" class="form-input">
                             <input type="date" id="cf_date" class="form-input">
                         </div>
                         <div class="form-competencies" id="cf_competencies"></div>
                         <div class="form-row">
                             <select id="cf_result" class="form-input">
-                                <option value="rejected">Отклонён</option>
-                                <option value="accepted">Принят</option>
-                                <option value="accepted_no_sb">Не прошёл СБ</option>
-                                <option value="pending">В ожидании</option>
+                                <option value="rejected" data-i18n="cand.result_rejected">Отклонён</option>
+                                <option value="accepted" data-i18n="cand.result_accepted">Принят</option>
+                                <option value="accepted_no_sb" data-i18n="cand.result_no_sb">Не прошёл СБ</option>
+                                <option value="pending" data-i18n="cand.result_pending">В ожидании</option>
                             </select>
                         </div>
                         <div class="form-row">
-                            <textarea id="cf_conclusion" placeholder="Заключение" class="form-input" rows="2"></textarea>
+                            <textarea id="cf_conclusion" data-i18n-placeholder="cand.form.conclusion" placeholder="Заключение" class="form-input" rows="2"></textarea>
                         </div>
                         <div class="form-actions">
-                            <button class="btn-save" onclick="submitCandidate()"><i class="fas fa-check"></i> Сохранить</button>
-                            <button class="btn-cancel" onclick="hideAddCandidateForm()">Отмена</button>
+                            <button class="btn-save" onclick="submitCandidate()"><i class="fas fa-check"></i> <span data-i18n="cand.form.save">Сохранить</span></button>
+                            <button class="btn-cancel" onclick="hideAddCandidateForm()"><span data-i18n="cand.form.cancel">Отмена</span></button>
                         </div>
                     </div>
                 </div>
@@ -356,6 +380,7 @@
         </main>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

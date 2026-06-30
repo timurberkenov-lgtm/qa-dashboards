@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -200,6 +199,11 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/tasks/comments", h.handleTaskComments)
 	mux.HandleFunc("/api/merge-requests", h.handleMergeRequests)
 	mux.HandleFunc("/api/confluence", h.handleConfluence)
+	mux.HandleFunc("/api/mr/review", h.handleMRReview)
+	mux.HandleFunc("/api/mr/commits", h.handleMRCommits)
+	mux.HandleFunc("/api/mr/users", h.handleMRUsers)
+	mux.HandleFunc("/api/mr/users/validate", h.handleMRUserValidate)
+	mux.HandleFunc("/api/workload", h.handleWorkload)
 	mux.HandleFunc("/api/health", h.handleHealth)
 }
 
@@ -365,7 +369,8 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	monthParam := r.URL.Query().Get("month")
-	cacheKey := "tasks:" + monthParam
+	lang := r.URL.Query().Get("lang")
+	cacheKey := "tasks:" + monthParam + ":" + lang
 
 	// Check cache
 	h.mu.RLock()
@@ -394,13 +399,14 @@ func (h *Handler) handleTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var result []TasksResponse
+
 	for _, emp := range data.Employees {
 		issues, err := h.jira.GetEmployeeTasksRange(emp.Employee, monthStart, until)
 		if err != nil {
 			issues = []models.JiraIssue{}
 		}
 
-		conclusion := generateTasksConclusion(emp.Employee.Name, issues, emp.Tasks)
+		conclusion := generateTasksConclusion(emp.Employee.Name, issues, emp.Tasks, lang)
 		result = append(result, TasksResponse{
 			Employee:   emp.Employee.Name,
 			Issues:     issues,
@@ -517,7 +523,7 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	monthParam := r.URL.Query().Get("month")
-	cacheKey := "mr:" + monthParam
+	cacheKey := "mr:" + monthParam + ":" + r.URL.Query().Get("lang")
 
 	// Check cache
 	h.mu.RLock()
@@ -531,6 +537,8 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 	h.mu.RUnlock()
 
 	monthStart, monthEnd := getMonthRange(r)
+
+	lang := r.URL.Query().Get("lang")
 
 	var result []models.MRDetailResponse
 	for _, emp := range data.Employees {
@@ -546,10 +554,34 @@ func (h *Handler) handleMergeRequests(w http.ResponseWriter, r *http.Request) {
 		}
 
 		metrics := countMRMetrics(mrs)
-		conclusion := generateMRConclusion(emp.Employee.Name, mrs, metrics)
+		conclusion := generateMRConclusion(emp.Employee.Name, mrs, metrics, lang)
 
 		result = append(result, models.MRDetailResponse{
 			Employee:   emp.Employee.Name,
+			MRs:        mrs,
+			Metrics:    metrics,
+			Conclusion: conclusion,
+		})
+	}
+
+	// Also include additional MR-tracked users
+	for _, extraEmp := range getMRAdditionalUsers() {
+		var mrs []models.MergeRequest
+		var err error
+		if r.URL.Query().Get("month") == "all" {
+			mrs, err = h.gitlab.GetEmployeeMRDetailsSince(extraEmp, monthStart)
+		} else {
+			mrs, err = h.gitlab.GetEmployeeMRDetailsRange(extraEmp, monthStart, monthEnd)
+		}
+		if err != nil {
+			mrs = []models.MergeRequest{}
+		}
+
+		metrics := countMRMetrics(mrs)
+		conclusion := generateMRConclusion(extraEmp.Name, mrs, metrics, lang)
+
+		result = append(result, models.MRDetailResponse{
+			Employee:   extraEmp.Name,
 			MRs:        mrs,
 			Metrics:    metrics,
 			Conclusion: conclusion,
@@ -576,7 +608,7 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 	}
 
 	monthParam := r.URL.Query().Get("month")
-	cacheKey := "confluence:" + monthParam
+	cacheKey := "confluence:" + monthParam + ":" + r.URL.Query().Get("lang")
 
 	// Check cache
 	h.mu.RLock()
@@ -590,6 +622,8 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 	h.mu.RUnlock()
 
 	monthStart, monthEnd := getMonthRange(r)
+
+	lang := r.URL.Query().Get("lang")
 
 	var result []models.ConfluenceDetailResponse
 	for _, emp := range data.Employees {
@@ -605,7 +639,7 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 		}
 
 		metrics := emp.Confluence
-		conclusion := generateConfluenceConclusion(emp.Employee.Name, pages, metrics)
+		conclusion := generateConfluenceConclusion(emp.Employee.Name, pages, metrics, lang)
 
 		result = append(result, models.ConfluenceDetailResponse{
 			Employee:   emp.Employee.Name,
@@ -627,11 +661,10 @@ func (h *Handler) handleConfluence(w http.ResponseWriter, r *http.Request) {
 
 // === Conclusion generators ===
 
-func generateTasksConclusion(name string, issues []models.JiraIssue, metrics models.TaskMetrics) string {
+func generateTasksConclusion(name string, issues []models.JiraIssue, metrics models.TaskMetrics, lang string) string {
 	var issues2 []string
 	now := time.Now()
 
-	// Count stale
 	staleCount := 0
 	noDescription := 0
 	for _, issue := range issues {
@@ -644,41 +677,51 @@ func generateTasksConclusion(name string, issues []models.JiraIssue, metrics mod
 		}
 	}
 
+	if lang == "en" {
+		if staleCount > 0 {
+			issues2 = append(issues2, fmt.Sprintf("%d tasks stale (>5 days in same status)", staleCount))
+		}
+		if noDescription > 0 {
+			issues2 = append(issues2, fmt.Sprintf("%d tasks without description — needs attention", noDescription))
+		}
+		if metrics.ActiveTasks > 10 {
+			issues2 = append(issues2, fmt.Sprintf("Too many active tasks (%d) — possible overload", metrics.ActiveTasks))
+		}
+		if metrics.CompletedMonth == 0 && metrics.ActiveTasks > 0 {
+			issues2 = append(issues2, "No completed tasks this month while active tasks exist")
+		}
+		if metrics.AvgCycleTimeDays > 10 {
+			issues2 = append(issues2, fmt.Sprintf("High cycle time: %.1f days on average", metrics.AvgCycleTimeDays))
+		}
+		if len(issues2) == 0 {
+			return "Tasks are being processed normally. No issues."
+		}
+		return "Recommendations: " + joinSemicolon(issues2)
+	}
+
+	// Russian (default)
 	if staleCount > 0 {
 		issues2 = append(issues2, fmt.Sprintf("%d задач зависли (>5 дней в одном статусе)", staleCount))
 	}
-
 	if noDescription > 0 {
 		issues2 = append(issues2, fmt.Sprintf("%d задач без описания — необходимо заполнить", noDescription))
 	}
-
 	if metrics.ActiveTasks > 10 {
 		issues2 = append(issues2, fmt.Sprintf("Много активных задач (%d) — возможна перегрузка", metrics.ActiveTasks))
 	}
-
 	if metrics.CompletedMonth == 0 && metrics.ActiveTasks > 0 {
 		issues2 = append(issues2, "Нет завершённых задач за месяц при наличии активных")
 	}
-
 	if metrics.AvgCycleTimeDays > 10 {
 		issues2 = append(issues2, fmt.Sprintf("Высокий cycle time: %.1f дней в среднем", metrics.AvgCycleTimeDays))
 	}
-
 	if len(issues2) == 0 {
 		return "Задачи обрабатываются в нормальном режиме. Замечаний нет."
 	}
-
-	result := "Рекомендации: "
-	for i, issue := range issues2 {
-		if i > 0 {
-			result += "; "
-		}
-		result += issue
-	}
-	return result
+	return "Рекомендации: " + joinSemicolon(issues2)
 }
 
-func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models.GitLabMetrics) string {
+func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models.GitLabMetrics, lang string) string {
 	var issues []string
 
 	longOpen := 0
@@ -687,58 +730,65 @@ func generateMRConclusion(name string, mrs []models.MergeRequest, metrics models
 			longOpen++
 		}
 	}
-	if longOpen > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR открыты более 3 дней — требуют внимания", longOpen))
-	}
-
 	failedPipelines := 0
 	for _, mr := range mrs {
 		if mr.PipelineStatus == "failed" {
 			failedPipelines++
 		}
 	}
-	if failedPipelines > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR с упавшим pipeline", failedPipelines))
-	}
-
-	if metrics.MRsWithoutReview > 0 {
-		issues = append(issues, fmt.Sprintf("%d MR без ревьюера", metrics.MRsWithoutReview))
-	}
-
 	conflicts := 0
 	for _, mr := range mrs {
 		if mr.HasConflicts {
 			conflicts++
 		}
 	}
+
+	if lang == "en" {
+		if longOpen > 0 {
+			issues = append(issues, fmt.Sprintf("%d MRs open for >3 days — need attention", longOpen))
+		}
+		if failedPipelines > 0 {
+			issues = append(issues, fmt.Sprintf("%d MRs with failed pipeline", failedPipelines))
+		}
+		if metrics.MRsWithoutReview > 0 {
+			issues = append(issues, fmt.Sprintf("%d MRs without a reviewer", metrics.MRsWithoutReview))
+		}
+		if conflicts > 0 {
+			issues = append(issues, fmt.Sprintf("%d MRs with conflicts", conflicts))
+		}
+		if len(mrs) == 0 {
+			issues = append(issues, "No MRs for selected period")
+		}
+		if len(issues) == 0 {
+			return "All good. MRs are being processed normally."
+		}
+		return "Attention: " + joinSemicolon(issues)
+	}
+
+	// Russian (default)
+	if longOpen > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR открыты более 3 дней — требуют внимания", longOpen))
+	}
+	if failedPipelines > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR с упавшим pipeline", failedPipelines))
+	}
+	if metrics.MRsWithoutReview > 0 {
+		issues = append(issues, fmt.Sprintf("%d MR без ревьюера", metrics.MRsWithoutReview))
+	}
 	if conflicts > 0 {
 		issues = append(issues, fmt.Sprintf("%d MR с конфликтами", conflicts))
 	}
-
 	if len(mrs) == 0 {
 		issues = append(issues, "Нет MR за выбранный период")
 	}
-
 	if len(issues) == 0 {
 		return "Всё в порядке. MR обрабатываются в нормальном режиме."
 	}
-
-	result := "Обратить внимание: "
-	for i, issue := range issues {
-		if i > 0 {
-			result += "; "
-		}
-		result += issue
-	}
-	return result
+	return "Обратить внимание: " + joinSemicolon(issues)
 }
 
-func generateConfluenceConclusion(name string, pages []models.ConfluencePage, metrics models.ConfluenceMetrics) string {
+func generateConfluenceConclusion(name string, pages []models.ConfluencePage, metrics models.ConfluenceMetrics, lang string) string {
 	var issues []string
-
-	if len(pages) == 0 {
-		issues = append(issues, "Нет активности в Confluence за выбранный период")
-	}
 
 	shortPages := 0
 	for _, p := range pages {
@@ -746,34 +796,58 @@ func generateConfluenceConclusion(name string, pages []models.ConfluencePage, me
 			shortPages++
 		}
 	}
-	if shortPages > 0 {
-		issues = append(issues, fmt.Sprintf("%d страниц с минимальным содержимым (<500 символов)", shortPages))
-	}
-
 	stalePages := 0
 	for _, p := range pages {
 		if p.DaysSinceUpdate > 30 {
 			stalePages++
 		}
 	}
+
+	if lang == "en" {
+		if len(pages) == 0 {
+			issues = append(issues, "No Confluence activity for selected period")
+		}
+		if shortPages > 0 {
+			issues = append(issues, fmt.Sprintf("%d pages with minimal content (<500 chars)", shortPages))
+		}
+		if stalePages > 0 {
+			issues = append(issues, fmt.Sprintf("%d pages not updated >30 days", stalePages))
+		}
+		if metrics.QualityScore < 50 {
+			issues = append(issues, "Low documentation quality score")
+		}
+		if len(issues) == 0 {
+			return "Documentation is being actively maintained. No issues."
+		}
+		return "Attention: " + joinSemicolon(issues)
+	}
+
+	// Russian (default)
+	if len(pages) == 0 {
+		issues = append(issues, "Нет активности в Confluence за выбранный период")
+	}
+	if shortPages > 0 {
+		issues = append(issues, fmt.Sprintf("%d страниц с минимальным содержимым (<500 символов)", shortPages))
+	}
 	if stalePages > 0 {
 		issues = append(issues, fmt.Sprintf("%d страниц не обновлялись >30 дней", stalePages))
 	}
-
 	if metrics.QualityScore < 50 {
 		issues = append(issues, "Низкий показатель качества документации")
 	}
-
 	if len(issues) == 0 {
 		return "Документация ведётся активно. Замечаний нет."
 	}
+	return "Обратить внимание: " + joinSemicolon(issues)
+}
 
-	result := "Обратить внимание: "
-	for i, issue := range issues {
+func joinSemicolon(items []string) string {
+	result := ""
+	for i, item := range items {
 		if i > 0 {
 			result += "; "
 		}
-		result += issue
+		result += item
 	}
 	return result
 }
@@ -794,9 +868,6 @@ func countMRMetrics(mrs []models.MergeRequest) models.GitLabMetrics {
 	}
 	return m
 }
-
-// helper for unused import
-var _ = strconv.Itoa
 
 // isActiveWorkStatus checks if a status is "В работе", "На анализе", or "Analysis"
 func isActiveWorkStatus(status string) bool {

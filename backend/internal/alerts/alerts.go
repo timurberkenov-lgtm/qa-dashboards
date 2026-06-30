@@ -54,6 +54,7 @@ func (a *AlertEngine) CheckAlerts(employee models.Employee, issues []models.Jira
 				Type:         "stale_task",
 				Severity:     severity,
 				Message:      fmt.Sprintf("Задача %s в статусе \"%s\" уже %d дней", issue.Key, issue.Status, daysInStatus),
+				MessageEn:    fmt.Sprintf("Task %s in status \"%s\" for %d days", issue.Key, issue.Status, daysInStatus),
 				TaskKey:      issue.Key,
 				TaskURL:      issue.URL,
 				CreatedAt:    now,
@@ -69,7 +70,8 @@ func (a *AlertEngine) CheckAlerts(employee models.Employee, issues []models.Jira
 			Employee:  employee.Name,
 			Type:      "no_activity",
 			Severity:  "warning",
-			Message:   fmt.Sprintf("Нет активности в GitLab за текущий месяц"),
+			Message:   "Нет активности в GitLab за текущий месяц",
+			MessageEn: "No GitLab activity this month",
 			CreatedAt: now,
 		})
 	}
@@ -82,6 +84,7 @@ func (a *AlertEngine) CheckAlerts(employee models.Employee, issues []models.Jira
 			Type:      "mr_no_review",
 			Severity:  "warning",
 			Message:   fmt.Sprintf("%d MR без назначенного ревьюера", gitlab.MRsWithoutReview),
+			MessageEn: fmt.Sprintf("%d MRs without assigned reviewer", gitlab.MRsWithoutReview),
 			CreatedAt: now,
 		})
 	}

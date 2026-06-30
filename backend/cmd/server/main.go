@@ -5,10 +5,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/api"
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/candidates"
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/config"
+	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/db"
 )
 
 func main() {
@@ -22,16 +24,38 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Connect to PostgreSQL
+	dbHost := envOrDefault("DB_HOST", "localhost")
+	dbPort, _ := strconv.Atoi(envOrDefault("DB_PORT", "5432"))
+	dbUser := envOrDefault("DB_USER", "postgres")
+	dbPassword := envOrDefault("DB_PASSWORD", "537696")
+	dbName := envOrDefault("DB_NAME", "dashboards")
+
+	if err := db.Connect(dbHost, dbPort, dbUser, dbPassword, dbName); err != nil {
+		log.Printf("WARNING: Database connection failed: %v (falling back to file storage)", err)
+	} else {
+		defer db.Close()
+	}
+
 	log.Printf("Starting QA Dashboard server on port %d", cfg.Server.Port)
 	log.Printf("Poll interval: %v", cfg.Server.PollInterval)
 	log.Printf("Monitoring %d employees", len(cfg.Employees))
 
 	handler := api.NewHandler(cfg)
-	candidatesHandler := candidates.NewHandler("data/candidates.json")
 
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
-	candidatesHandler.RegisterRoutes(mux)
+
+	// Candidates: use PostgreSQL if connected, otherwise fallback to JSON
+	if db.Pool != nil {
+		candidatesDBHandler := candidates.NewDBHandler()
+		candidatesDBHandler.RegisterRoutes(mux)
+		log.Println("Candidates: using PostgreSQL")
+	} else {
+		candidatesHandler := candidates.NewHandler("data/candidates.json")
+		candidatesHandler.RegisterRoutes(mux)
+		log.Println("Candidates: using JSON file (DB not available)")
+	}
 
 	// Serve frontend static files with no-cache headers
 	fsHandler := http.FileServer(http.Dir("../frontend"))
@@ -51,4 +75,11 @@ func noCacheMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Expires", "0")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func envOrDefault(key, defaultVal string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultVal
 }

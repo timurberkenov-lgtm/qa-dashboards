@@ -47,15 +47,16 @@ type GitLabMetrics struct {
 
 // Alert represents a notification about an issue
 type Alert struct {
-	ID         string    `json:"id"`
-	Employee   string    `json:"employee"`
-	Type       string    `json:"type"` // stale_task, no_activity, mr_no_review, overdue
-	Severity   string    `json:"severity"` // warning, critical
-	Message    string    `json:"message"`
-	TaskKey    string    `json:"task_key,omitempty"`
-	TaskURL    string    `json:"task_url,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	DaysInStatus int    `json:"days_in_status,omitempty"`
+	ID           string    `json:"id"`
+	Employee     string    `json:"employee"`
+	Type         string    `json:"type"`     // stale_task, no_activity, mr_no_review, overdue
+	Severity     string    `json:"severity"` // warning, critical
+	Message      string    `json:"message"`
+	MessageEn    string    `json:"message_en"`
+	TaskKey      string    `json:"task_key,omitempty"`
+	TaskURL      string    `json:"task_url,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	DaysInStatus int       `json:"days_in_status,omitempty"`
 }
 
 // EmployeeDashboard is the complete data for one employee card
@@ -122,6 +123,7 @@ type MergeRequest struct {
 	SourceBranch string   `json:"source_branch"`
 	TargetBranch string   `json:"target_branch"`
 	Project     string    `json:"project"`
+	ProjectPath string    `json:"project_path"`
 	HasConflicts bool     `json:"has_conflicts"`
 	Reviewers   []string  `json:"reviewers"`
 	PipelineStatus string `json:"pipeline_status"` // success, failed, running, pending

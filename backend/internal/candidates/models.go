@@ -50,6 +50,17 @@ var DefaultCompetencies = []string{
 	"Разбор архитектуры (монолит/микросервис/SOA)",
 }
 
+// DefaultCompetenciesEN is the English translation of competency names
+var DefaultCompetenciesEN = []string{
+	"System Integration Methods",
+	"Integration Design (SOAP, REST, gRPC, queues)",
+	"Writing Technical Specs",
+	"DB Design (SQL, relations, indexes, normalization)",
+	"Sync/Async Communication",
+	"Message Brokers (Kafka/RabbitMQ)",
+	"Architecture Analysis (monolith/microservice/SOA)",
+}
+
 // LevelFromScore calculates level from average score
 func LevelFromScore(avg float64) (string, int) {
 	switch {

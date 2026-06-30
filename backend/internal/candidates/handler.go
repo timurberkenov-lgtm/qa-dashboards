@@ -52,7 +52,8 @@ func (h *Handler) handleCandidates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stats := CalculateStats(candidates)
-	conclusion := GenerateConclusion(candidates, stats)
+	lang := r.URL.Query().Get("lang")
+	conclusion := GenerateConclusion(candidates, stats, lang)
 
 	resp := Response{
 		Candidates: candidates,

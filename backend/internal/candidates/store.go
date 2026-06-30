@@ -185,15 +185,55 @@ func CalculateStats(candidates []Candidate) Stats {
 }
 
 // GenerateConclusion creates auto-generated conclusion
-func GenerateConclusion(candidates []Candidate, stats Stats) string {
+func GenerateConclusion(candidates []Candidate, stats Stats, lang string) string {
 	if stats.Total == 0 {
+		if lang == "en" {
+			return "No interview data for the selected period."
+		}
 		return "Нет данных о собеседованиях за выбранный период."
 	}
 
 	var parts []string
 
-	parts = append(parts, fmt.Sprintf("Проведено %d собеседований", stats.Total))
+	if lang == "en" {
+		parts = append(parts, fmt.Sprintf("%d interviews conducted", stats.Total))
+		if stats.Accepted > 0 {
+			parts = append(parts, fmt.Sprintf("%d accepted", stats.Accepted))
+		}
+		if stats.NoSB > 0 {
+			parts = append(parts, fmt.Sprintf("%d failed security check", stats.NoSB))
+		}
+		parts = append(parts, fmt.Sprintf("conversion %.0f%%", stats.Conversion))
 
+		conclusion := strings.Join(parts, ", ") + "."
+
+		if len(candidates) >= 3 {
+			compScores := make(map[string]float64)
+			compCounts := make(map[string]int)
+			for _, c := range candidates {
+				for _, comp := range c.Competencies {
+					compScores[comp.Name] += float64(comp.Score)
+					compCounts[comp.Name]++
+				}
+			}
+			var weakest string
+			weakestScore := 10.0
+			for name, total := range compScores {
+				avg := total / float64(compCounts[name])
+				if avg < weakestScore {
+					weakestScore = avg
+					weakest = name
+				}
+			}
+			if weakest != "" && weakestScore < 3 {
+				conclusion += fmt.Sprintf(" Weak area: %s (avg score %.1f).", weakest, weakestScore)
+			}
+		}
+		return conclusion
+	}
+
+	// Russian (default)
+	parts = append(parts, fmt.Sprintf("Проведено %d собеседований", stats.Total))
 	if stats.Accepted > 0 {
 		parts = append(parts, fmt.Sprintf("%d принято", stats.Accepted))
 	}
@@ -204,7 +244,6 @@ func GenerateConclusion(candidates []Candidate, stats Stats) string {
 
 	conclusion := strings.Join(parts, ", ") + "."
 
-	// Find weak competencies
 	if len(candidates) >= 3 {
 		compScores := make(map[string]float64)
 		compCounts := make(map[string]int)
@@ -214,7 +253,6 @@ func GenerateConclusion(candidates []Candidate, stats Stats) string {
 				compCounts[comp.Name]++
 			}
 		}
-
 		var weakest string
 		weakestScore := 10.0
 		for name, total := range compScores {

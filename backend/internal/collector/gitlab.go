@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/timurberkenov-lgtm/qa-dashboards/backend/internal/config"
@@ -114,6 +115,7 @@ func (g *GitLabCollector) GetEmployeeMRDetailsRange(employee models.Employee, si
 			SourceBranch:   mr.SourceBranch,
 			TargetBranch:   mr.TargetBranch,
 			Project:        mr.References.Full,
+			ProjectPath:    extractProjectPath(mr.WebURL),
 			HasConflicts:   mr.HasConflicts,
 			Reviewers:      reviewers,
 			PipelineStatus: mr.PipelineStatus,
@@ -240,4 +242,22 @@ type gitlabUser struct {
 type gitlabEvent struct {
 	ActionName string `json:"action_name"`
 	CreatedAt  string `json:"created_at"`
+}
+
+// extractProjectPath extracts project path from GitLab MR web_url
+// e.g. "https://gitlab.fortebank.com/phoenix/backend/shared/contracts/cards-api-contracts/-/merge_requests/3"
+// returns "phoenix/backend/shared/contracts/cards-api-contracts"
+func extractProjectPath(webURL string) string {
+	// Remove base URL
+	const prefix = "https://gitlab.fortebank.com/"
+	if !strings.HasPrefix(webURL, prefix) {
+		return ""
+	}
+	path := strings.TrimPrefix(webURL, prefix)
+	// Split on "/-/" to get project path
+	idx := strings.Index(path, "/-/")
+	if idx < 0 {
+		return ""
+	}
+	return path[:idx]
 }
